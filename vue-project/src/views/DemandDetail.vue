@@ -274,11 +274,18 @@
               </div>
             </div>
 
-            <!-- 甲方操作：需求已发布/进行中时可选中标 -->
-            <div v-if="isOwner && (demand.status === '已发布' || demand.status === '进行中') && !demand.chosen_quote_id" class="quote-actions">
-              <button class="btn btn-primary" @click="chooseQuote(q)">
+            <!-- 甲方操作：需求已发布/进行中时可选中标，已有中标则显示提示 -->
+            <div v-if="isOwner && (demand.status === '已发布' || demand.status === '进行中')" class="quote-actions">
+              <button
+                v-if="!demand.chosen_quote_id"
+                class="btn btn-primary"
+                @click="chooseQuote(q)"
+              >
                 <i class="fas fa-check"></i> 选为中标
               </button>
+              <span v-else-if="demand.chosen_quote_id === q.id" style="color: #28a745; font-weight: 600">
+                <i class="fas fa-check-circle"></i> 已中标
+              </span>
             </div>
           </div>
         </div>
