@@ -1,5 +1,7 @@
 // API 配置
-export const API_BASE = 'http://localhost:8000'
+// 开发环境使用 localhost，生产环境使用环境变量或相对路径
+const env = import.meta.env
+export const API_BASE = env.VITE_API_BASE_URL || (window.location.protocol + '//' + window.location.hostname + ':8000')
 
 // 封装的 API 模块
 export const api = {
