@@ -24,7 +24,7 @@ RUN npm run build
 # ============================================
 # 第二阶段：使用 Nginx 服务静态文件
 # ============================================
-FROM nginx:alpine
+FROM registry.cn-hangzhou.aliyuncs.com/library/nginx:alpine
 
 # 删除默认配置
 RUN rm -rf /usr/share/nginx/html/*

@@ -4,7 +4,7 @@
 # 基于 Python 3.10 精简镜像（国内镜像源）
 # ============================================
 
-FROM python:3.10-slim
+FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.10-slim
 
 # 设置工作目录
 WORKDIR /app
