@@ -14,9 +14,47 @@
 
 ---
 
-## 二、快速部署
+## 二、镜像加速器配置（国内服务器必读）
 
-### 2.1 一键启动
+> ⚠️ 如果服务器在国内，需要配置 Docker 镜像加速器，否则拉取 Docker Hub 镜像会非常慢或失败。
+
+### 2.1 配置镜像加速器
+
+```bash
+# 创建或编辑 Docker 配置
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+  "registry-mirrors": [
+    "https://docker.1ms.run",
+    "https://docker.xuanyuan.me"
+  ]
+}
+EOF
+
+# 重启 Docker
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+# 验证配置
+docker info | grep -A 5 "Registry Mirrors"
+```
+
+### 2.2 常用加速器地址
+
+| 加速器 | 地址 |
+|--------|------|
+| Docker Proxy | https://docker.1ms.run |
+| DaoCloud | https://docker.xuanyuan.me |
+| 阿里云（需账号） | https://<your-id>.mirror.aliyuncs.com |
+
+> 💡 阿里云加速器需要登录阿里云容器镜像服务获取专属地址：https://cr.console.aliyun.com
+
+---
+
+## 三、快速部署
+
+### 3.1 一键启动
 
 ```bash
 # 克隆项目
@@ -33,7 +71,7 @@ docker-compose ps
 docker-compose logs -f
 ```
 
-### 2.2 访问服务
+### 3.2 访问服务
 
 | 服务 | 地址 |
 |------|------|
@@ -44,7 +82,7 @@ docker-compose logs -f
 
 ---
 
-## 三、服务架构
+## 四、服务架构
 
 ```
                     ┌─────────────────────────────────┐
@@ -72,7 +110,7 @@ docker-compose logs -f
 
 ---
 
-## 四、配置说明
+## 五、配置说明
 
 ### 4.1 环境变量
 
@@ -104,7 +142,7 @@ nano .env
 
 ---
 
-## 五、目录结构
+## 六、目录结构
 
 ```
 tushen-system/
@@ -125,7 +163,7 @@ tushen-system/
 
 ---
 
-## 六、常用命令
+## 七、常用命令
 
 ### 6.1 启动/停止
 
@@ -185,7 +223,7 @@ docker-compose restart backend
 
 ---
 
-## 七、升级更新
+## 八、升级更新
 
 ### 7.1 拉取最新代码
 
@@ -213,7 +251,7 @@ docker-compose up -d --build frontend
 
 ---
 
-## 八、Nginx 配置说明
+## 九、Nginx 配置说明
 
 `nginx.conf` 主要配置：
 
@@ -226,7 +264,7 @@ docker-compose up -d --build frontend
 
 ---
 
-## 九、数据持久化
+## 十、数据持久化
 
 以下目录作为 Docker 挂载卷，删除容器后数据保留：
 
@@ -238,7 +276,7 @@ docker-compose up -d --build frontend
 
 ---
 
-## 十、故障排查
+## 十一、故障排查
 
 ### 10.1 服务启动失败
 
@@ -287,7 +325,7 @@ docker-compose restart backend
 
 ---
 
-## 十一、安全建议
+## 十二、安全建议
 
 1. **修改默认端口**：生产环境修改 `docker-compose.yml` 中的端口映射
 2. **配置防火墙**：只开放 80/443 端口
@@ -305,7 +343,7 @@ docker exec tushen-nginx certbot --nginx -d your-domain.com
 
 ---
 
-## 十二、一键部署脚本
+## 十三、一键部署脚本
 
 创建 `deploy.sh`：
 
@@ -367,7 +405,7 @@ chmod +x deploy.sh
 
 ---
 
-## 十三、快速命令汇总
+## 十四、快速命令汇总
 
 ```bash
 # 启动
