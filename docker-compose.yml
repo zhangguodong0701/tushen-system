@@ -23,8 +23,8 @@ services:
   # ==================== 后端服务 ====================
   backend:
     build:
-      context: ./backend
-      dockerfile: ../Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: tushen-backend
     restart: unless-stopped
     ports:
@@ -47,8 +47,8 @@ services:
   # ==================== 前端构建（开发模式） ====================
   frontend:
     build:
-      context: ./vue-project
-      dockerfile: ../Dockerfile.frontend
+      context: .
+      dockerfile: Dockerfile.frontend
     container_name: tushen-frontend
     restart: unless-stopped
     environment:
