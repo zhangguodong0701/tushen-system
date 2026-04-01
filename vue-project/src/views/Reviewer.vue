@@ -122,7 +122,11 @@
             </div>
             <div class="feedback-content">{{ f.content }}</div>
             <div v-if="!f.reply" class="feedback-reply-form">
-              <textarea v-model="replyContent" placeholder="请输入回复内容..."></textarea>
+              <textarea
+                v-model="replyContent[f.id]"
+                placeholder="请输入回复内容..."
+                rows="2"
+              ></textarea>
               <button class="btn btn-primary btn-sm" @click="submitReply(f)">
                 提交回复
               </button>
@@ -199,7 +203,7 @@ const users = ref([])
 const disputes = ref([])
 const feedbacks = ref([])
 const selectedUser = ref(null)
-const replyContent = ref('')
+const replyContent = ref({})  // { [feedbackId]: string }
 
 const tabs = ref([
   { key: 'users', label: '用户审核', count: 0 },
@@ -259,14 +263,15 @@ function handleDispute(d) {
 }
 
 async function submitReply(f) {
-  if (!replyContent.value.trim()) {
+  const content = (replyContent.value[f.id] || '').trim()
+  if (!content) {
     authStore.toast('请输入回复内容', 'error')
     return
   }
   try {
-    await api.post(`/api/admin/feedbacks/${f.id}/reply`, { reply: replyContent.value })
+    await api.post(`/api/admin/feedbacks/${f.id}/reply`, { reply: content })
     authStore.toast('回复成功', 'success')
-    replyContent.value = ''
+    delete replyContent.value[f.id]
     loadData()
   } catch (e) {
     authStore.toast(e.message || '回复失败', 'error')
@@ -418,12 +423,14 @@ onMounted(() => {
 
 .feedback-reply-form textarea {
   flex: 1;
+  width: 100%;
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
   resize: vertical;
   min-height: 60px;
+  box-sizing: border-box;
 }
 
 .feedback-reply {
