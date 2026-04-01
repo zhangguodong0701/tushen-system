@@ -12,9 +12,6 @@
         <div v-else-if="quotes.length === 0" class="empty-state">
           <i class="fas fa-file-invoice-dollar"></i>
           <p>您还没有提交任何报价</p>
-          <button v-if="authStore.isSeller" class="btn btn-primary" @click="router.push('/demands')">
-            去需求大厅看看
-          </button>
         </div>
         <table v-else class="data-table">
           <thead>

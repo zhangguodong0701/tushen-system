@@ -125,7 +125,8 @@
               <textarea
                 v-model="replyContent[f.id]"
                 placeholder="请输入回复内容..."
-                rows="2"
+                rows="3"
+                style="width: 100%; box-sizing: border-box;"
               ></textarea>
               <button class="btn btn-primary btn-sm" @click="submitReply(f)">
                 提交回复
@@ -211,18 +212,31 @@ const tabs = ref([
   { key: 'feedbacks', label: '投诉反馈', count: 0 }
 ])
 
+// 加载所有 tab 的数量（badge 显示用）
+async function loadCounts() {
+  try {
+    const [pendingUsers, pendingDisputes, allFeedbacks] = await Promise.all([
+      api.get('/api/admin/users?status=待审核').catch(() => []),
+      api.get('/api/disputes?status=待处理').catch(() => []),
+      api.get('/api/admin/feedbacks').catch(() => [])
+    ])
+    tabs.value[0].count = pendingUsers.length
+    tabs.value[1].count = pendingDisputes.length
+    tabs.value[2].count = allFeedbacks.filter(f => !f.reply).length
+  } catch {}
+}
+
 async function loadData() {
   loading.value = true
   try {
+    // 先刷新所有 badge 数量
+    await loadCounts()
     if (activeTab.value === 'users') {
       users.value = await api.get('/api/admin/users?status=待审核')
-      tabs.value[0].count = users.value.length
     } else if (activeTab.value === 'disputes') {
       disputes.value = await api.get('/api/disputes?status=待处理')
-      tabs.value[1].count = disputes.value.length
     } else if (activeTab.value === 'feedbacks') {
       feedbacks.value = await api.get('/api/admin/feedbacks')
-      tabs.value[2].count = feedbacks.value.filter(f => !f.reply).length
     }
   } catch (e) {
     authStore.toast('加载数据失败', 'error')
@@ -417,20 +431,30 @@ onMounted(() => {
 
 .feedback-reply-form {
   display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: flex-start;
+  width: 100%;
 }
 
 .feedback-reply-form textarea {
-  flex: 1;
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 10px 14px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
   font-size: 14px;
   resize: vertical;
-  min-height: 60px;
+  min-height: 80px;
   box-sizing: border-box;
+  background: white;
+  font-family: inherit;
+}
+
+.feedback-reply-form button {
+  align-self: flex-end;
+  width: auto !important;
+  min-width: 100px;
+  padding: 10px 24px;
+  display: inline-block !important;
 }
 
 .feedback-reply {

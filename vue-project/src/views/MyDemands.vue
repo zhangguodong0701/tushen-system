@@ -75,10 +75,19 @@
                     选标
                   </button>
                   <button
-                    v-if="d.status === '进行中'"
+                    v-if="d.status === '进行中' && !d.chosen_quote_id"
                     class="btn btn-sm btn-outline"
                     style="min-width: 56px; padding: 4px 12px"
                     @click="handleClose(d)"
+                  >
+                    关闭
+                  </button>
+                  <button
+                    v-else-if="d.status === '进行中'"
+                    class="btn btn-sm btn-outline"
+                    style="min-width: 56px; padding: 4px 12px; opacity: 0.5; cursor: not-allowed"
+                    disabled
+                    title="已有中标方，无法关闭"
                   >
                     关闭
                   </button>

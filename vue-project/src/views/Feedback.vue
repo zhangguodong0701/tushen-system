@@ -16,6 +16,7 @@
             v-model="feedbackContent"
             placeholder="请详细描述您遇到的问题或建议（至少10字）"
             rows="5"
+            style="background: white; min-height: 120px; width: 100%; box-sizing: border-box; border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 14px; resize: vertical;"
           ></textarea>
         </div>
         <button class="btn btn-primary" :disabled="submitting" @click="submitFeedback">
@@ -250,5 +251,17 @@ onMounted(() => {
 .reply-content {
   color: #666;
   font-size: 14px;
+}
+
+.form-field textarea {
+  background: white !important;
+  min-height: 120px !important;
+  width: 100%;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
 }
 </style>

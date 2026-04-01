@@ -18,7 +18,7 @@
           <thead>
             <tr>
               <th>订单ID</th>
-              <th>订单名称</th>
+              <th>需求标题</th>
               <th>金额</th>
               <th>状态</th>
               <th>创建时间</th>
@@ -28,7 +28,7 @@
           <tbody>
             <tr v-for="order in orders" :key="order.id">
               <td><span class="badge badge-gray">{{ order.id }}</span></td>
-              <td>{{ order.title || `订单 #${order.id}` }}</td>
+              <td>{{ order.demand_title || `需求 #${order.id}` }}</td>
               <td class="amount">¥{{ order.amount }}</td>
               <td>
                 <span class="status-badge" :class="order.status">
@@ -65,7 +65,7 @@
     <div v-if="selectedOrder" class="modal-overlay" @click.self="closeOrderDetail">
       <div class="modal modal-large">
         <div class="modal-header">
-          <h3>订单详情 - {{ selectedOrder.title || `订单 #${selectedOrder.id}` }}</h3>
+          <h3>订单详情 - {{ selectedOrder.demand_title || `需求 #${selectedOrder.id}` }}</h3>
           <button class="btn-close" @click="closeOrderDetail">
             <i class="fas fa-times"></i>
           </button>
@@ -152,7 +152,7 @@
         <div class="modal-body">
           <div class="form-group">
             <label>订单信息</label>
-            <p class="order-info">{{ disputeOrder?.title || `订单 #${disputeOrder?.id}` }} - ¥{{ disputeOrder?.amount }}</p>
+            <p class="order-info">{{ disputeOrder?.demand_title || `需求 #${disputeOrder?.id}` }} - ¥{{ disputeOrder?.amount }}</p>
           </div>
           <div class="form-group">
             <label>纠纷描述 *</label>

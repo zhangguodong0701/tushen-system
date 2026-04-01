@@ -96,7 +96,7 @@
             <div class="comment-images">
               <img v-for="(img, idx) in parseImages(selectedDrawing.comment_images)" 
                    :key="idx" 
-                   :src="`http://127.0.0.1:8000${img}`" 
+                   :src="`http://127.0.0.1:8001${img}`" 
                    @click="previewImage(img)"
                    class="comment-img" />
             </div>
@@ -160,7 +160,7 @@ function toggleProject(orderId) {
 }
 
 function downloadDrawing(d) {
-  window.open(`http://127.0.0.1:8000${d.file_url}`, '_blank')
+  window.open(`http://127.0.0.1:8001${d.file_url}`, '_blank')
 }
 
 function viewComments(d) {
@@ -169,7 +169,7 @@ function viewComments(d) {
 }
 
 function previewImage(img) {
-  previewUrl.value = `http://127.0.0.1:8000${img}`
+  previewUrl.value = `http://127.0.0.1:8001${img}`
 }
 
 function parseImages(images) {
