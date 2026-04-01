@@ -4,7 +4,7 @@
 # 基于 Python 3.11 精简镜像
 # ============================================
 
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 # 设置工作目录
 WORKDIR /app
