@@ -72,6 +72,9 @@ class Demand(Base):
     title = Column(String(200))
     description = Column(Text)
     budget = Column(Float, default=0)
+    budget_min = Column(Float, nullable=True)
+    budget_max = Column(Float, nullable=True)
+    deadline = Column(String(100), nullable=True)
     payment_type = Column(String(20), default="一次性")
     payment_phases = Column(Text)  # JSON格式，存储分阶段付款配置，如：[{"name":"初稿交付","ratio":30},{"name":"终稿验收","ratio":70}]
     status = Column(String(20), default="草稿")
@@ -79,6 +82,7 @@ class Demand(Base):
     demand_type = Column(String(50))
     file_url = Column(String(300))
     owner_id = Column(Integer, ForeignKey("users.id"))
+    chosen_quote_id = Column(Integer, nullable=True)  # 中标的报价ID
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     owner = relationship("User", back_populates="demands", foreign_keys=[owner_id])

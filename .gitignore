@@ -7,9 +7,13 @@ __pycache__/
 venv/
 .venv/
 
-# Node
-node_modules/
-package-lock.json
+# Vue
+vue-project/node_modules/
+vue-project/dist/
+vue-project/package-lock.json
+
+# Build artifacts
+*.map
 
 # Database
 *.db

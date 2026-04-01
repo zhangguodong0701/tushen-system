@@ -24,6 +24,20 @@ def get_current_reviewer(current_user: User = Depends(get_current_user)):
     return current_user
 from pydantic import BaseModel
 
+def extract_notification_type(title: str) -> str:
+    """从通知标题提取类型"""
+    if not title:
+        return "系统通知"
+    if "报价" in title:
+        return "报价通知"
+    if "订单" in title or "支付" in title or "验收" in title or "托管" in title:
+        return "订单状态变更"
+    if "纠纷" in title or "仲裁" in title:
+        return "纠纷通知"
+    if "资金" in title or "到账" in title or "退款" in title:
+        return "资金变动"
+    return "系统通知"
+
 app = FastAPI(title="图审系统API", version="1.0.0")
 
 app.add_middleware(
@@ -102,6 +116,9 @@ class DemandUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     budget: Optional[float] = None
+    budget_min: Optional[float] = None
+    budget_max: Optional[float] = None
+    deadline: Optional[str] = None
     payment_type: Optional[str] = None
     payment_phases: Optional[str] = None  # JSON格式的阶段配置
     profession: Optional[str] = None
@@ -160,11 +177,13 @@ def user_to_dict(u: User):
 def demand_to_dict(d: Demand):
     return {
         "id": d.id, "title": d.title, "description": d.description,
-        "budget": d.budget, "payment_type": d.payment_type,
+        "budget": d.budget, "budget_min": getattr(d, 'budget_min', None), "budget_max": getattr(d, 'budget_max', None),
+        "payment_type": d.payment_type,
         "payment_phases": json.loads(d.payment_phases) if d.payment_phases else None,
         "status": d.status, "profession": d.profession,
         "demand_type": d.demand_type, "file_url": d.file_url,
-        "owner_id": d.owner_id,
+        "owner_id": d.owner_id, "deadline": getattr(d, 'deadline', None),
+        "chosen_quote_id": getattr(d, 'chosen_quote_id', None),
         "owner_name": d.owner.real_name if d.owner else "",
         "created_at": str(d.created_at), "updated_at": str(d.updated_at),
         "quote_count": len(d.quotes) if d.quotes else 0
@@ -266,17 +285,46 @@ def upload_cert(file: UploadFile = File(...), cert_type: str = Form("license"),
     db.commit()
     return {"url": url}
 
+@app.post("/api/auth/certification")
+def submit_certification(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    提交实名认证资料（更新认证类型）
+    前端上传证件图片后调用此接口更新认证类型
+    """
+    # 验证是否已上传必要的证件
+    if current_user.auth_type == "个人":
+        if not current_user.id_card_front or not current_user.id_card_back:
+            raise HTTPException(400, "请先上传完整的身份证照片")
+    elif current_user.auth_type == "企业":
+        if not current_user.business_license:
+            raise HTTPException(400, "请先上传营业执照")
+    else:
+        # 检查是否上传了任意证件
+        if not any([current_user.id_card_front, current_user.id_card_back, current_user.business_license]):
+            raise HTTPException(400, "请先上传认证资料")
+    
+    # 认证状态改为待审核
+    if current_user.status == "未认证":
+        current_user.status = "待审核"
+    
+    db.commit()
+    return {"message": "认证资料已提交，等待审核", "status": current_user.status}
+
 # ========== Demand API ==========
 # 角色判断辅助函数
 JIA_FANG_TYPES = ['业主', '建设单位', '项目方']
 YI_FANG_TYPES = ['设计院', '设计师', '材料商', '设备商']
 
 def is_jia_fang(user: User) -> bool:
-    """判断是否为甲方用户"""
+    """判断是否为甲方用户（管理员和审核员除外）"""
+    if user.is_admin == 1 or user.is_reviewer == 1:
+        return False
     return user.user_type in JIA_FANG_TYPES
 
 def is_yi_fang(user: User) -> bool:
-    """判断是否为乙方用户"""
+    """判断是否为乙方用户（管理员和审核员除外）"""
+    if user.is_admin == 1 or user.is_reviewer == 1:
+        return False
     return user.user_type in YI_FANG_TYPES
 
 @app.post("/api/demands")
@@ -292,11 +340,11 @@ def create_demand(data: DemandCreate, current_user: User = Depends(get_current_u
 
 @app.put("/api/demands/{demand_id}")
 def update_demand(demand_id: int, data: DemandUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # P20: 需求编辑需要验证状态 - 只允许编辑草稿状态的需求
+    # 允许编辑草稿/待完善状态的需求
     demand = db.query(Demand).filter(Demand.id == demand_id, Demand.owner_id == current_user.id).first()
     if not demand:
         raise HTTPException(404, "需求不存在")
-    if demand.status not in ("草稿",):
+    if demand.status not in ("草稿", "待完善"):
         raise HTTPException(400, f"当前需求状态为「{demand.status}」，不允许编辑")
     for k, v in data.dict(exclude_none=True).items():
         setattr(demand, k, v)
@@ -414,7 +462,7 @@ def create_quote(demand_id: int, data: QuoteCreate, current_user: User = Depends
     
     # 通知甲方有新报价
     _notify(db, demand.owner_id, "📬 您有新报价", 
-            f"用户「{current_user.real_name}」对您的需求「{demand.title}」提交了报价：¥{data.price.toLocaleString()}元。请及时查看并选择合适的乙方。")
+            f"用户「{current_user.real_name}」对您的需求「{demand.title}」提交了报价：¥{data.price:,.0f}元。请及时查看并选择合适的乙方。")
     
     return {"id": quote.id, "price": quote.price, "remark": quote.remark, "status": quote.status}
 
@@ -447,7 +495,8 @@ def cancel_quote(quote_id: int, current_user: User = Depends(get_current_user), 
 def list_quotes(demand_id: int, db: Session = Depends(get_db)):
     quotes = db.query(Quote).filter(Quote.demand_id == demand_id).all()
     return [{"id": q.id, "price": q.price, "remark": q.remark, "status": q.status,
-             "bidder_id": q.bidder_id, "bidder_name": q.bidder.real_name if q.bidder else "",
+             "seller_id": q.bidder_id, "seller_name": q.bidder.phone if q.bidder else "",
+             "seller_real_name": q.bidder.real_name if q.bidder else "",
              "created_at": str(q.created_at)} for q in quotes]
 
 @app.get("/api/quotes/my")
@@ -479,6 +528,15 @@ def select_winner(demand_id: int, quote_id: int, current_user: User = Depends(ge
     
     # 更新报价状态
     quote.status = "中标"
+    # 其他报价更新为未中标
+    other_quotes = db.query(Quote).filter(
+        Quote.demand_id == demand_id,
+        Quote.id != quote_id
+    ).all()
+    for other in other_quotes:
+        other.status = "未中标"
+    # 记录中标报价ID
+    demand.chosen_quote_id = quote_id
     demand.status = "进行中"
     
     # 自动创建订单
@@ -657,7 +715,7 @@ def refund_order(order_id: int, current_user: User = Depends(get_current_user), 
 
 # ========== Drawing API ==========
 @app.post("/api/orders/{order_id}/drawings")
-def upload_drawing(order_id: int, file: UploadFile = File(...), version: str = Form("V1"),
+def upload_drawing(order_id: int, file: UploadFile = File(...), version: str = Form(None),
                    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # 权限验证：只有订单卖方才能上传图纸
     order = db.query(Order).filter(Order.id == order_id).first()
@@ -665,6 +723,11 @@ def upload_drawing(order_id: int, file: UploadFile = File(...), version: str = F
         raise HTTPException(404, "订单不存在")
     if order.seller_id != current_user.id:
         raise HTTPException(403, "只有订单承接方（乙方）才能上传图纸")
+    
+    # 自动计算下一个版本号
+    if not version:
+        existing_drawings = db.query(Drawing).filter(Drawing.order_id == order_id).count()
+        version = f"V{existing_drawings + 1}"
     
     url = save_file(file)
     drawing = Drawing(order_id=order_id, uploader_id=current_user.id,
@@ -674,6 +737,52 @@ def upload_drawing(order_id: int, file: UploadFile = File(...), version: str = F
     db.refresh(drawing)
     return {"id": drawing.id, "filename": drawing.filename, "file_url": drawing.file_url,
             "version": drawing.version, "created_at": str(drawing.created_at)}
+
+@app.get("/api/drawings")
+def list_my_drawings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """获取当前用户参与的所有订单的图纸"""
+    # 获取用户参与的所有订单
+    orders = db.query(Order).filter(
+        (Order.buyer_id == current_user.id) | (Order.seller_id == current_user.id)
+    ).all()
+    order_ids = [o.id for o in orders]
+    
+    if not order_ids:
+        return []
+    
+    # 获取所有相关订单的图纸
+    drawings = db.query(Drawing).filter(
+        Drawing.order_id.in_(order_ids)
+    ).order_by(Drawing.created_at.desc()).all()
+    
+    result = []
+    for d in drawings:
+        order = next((o for o in orders if o.id == d.order_id), None)
+        # 获取订单关联的需求标题
+        order_title = f"订单 {d.order_id}"
+        if order and order.demand:
+            order_title = order.demand.title
+        elif order:
+            # 如果没有关联需求，至少尝试获取
+            demand = db.query(Demand).filter(Demand.id == order.demand_id).first()
+            if demand:
+                order_title = demand.title
+        
+        result.append({
+            "id": d.id,
+            "name": d.filename,
+            "filename": d.filename,
+            "file_url": d.file_url,
+            "order_id": d.order_id,
+            "order_title": order_title,
+            "version": d.version,
+            "comments": d.comments,
+            "comment_images": d.comment_images,
+            "uploader_name": d.uploader.real_name if d.uploader else "",
+            "created_at": str(d.created_at)
+        })
+    
+    return result
 
 @app.get("/api/orders/{order_id}/drawings")
 def list_drawings(order_id: int, db: Session = Depends(get_db)):
@@ -732,6 +841,8 @@ def upload_comment_img(drawing_id: int, file: UploadFile = File(...),
 def list_notifications(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     notifs = db.query(Notification).filter(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).limit(50).all()
     return [{"id": n.id, "title": n.title, "content": n.content,
+             "message": n.content,  # 兼容前端字段名
+             "type": extract_notification_type(n.title),  # 从标题提取类型
              "is_read": n.is_read, "created_at": str(n.created_at)} for n in notifs]
 
 @app.post("/api/notifications/{notif_id}/read")
@@ -741,6 +852,16 @@ def read_notification(notif_id: int, current_user: User = Depends(get_current_us
         notif.is_read = 1
         db.commit()
     return {"message": "已读"}
+
+@app.post("/api/notifications/mark-all-read")
+def mark_all_notifications_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """将当前用户所有未读通知标记为已读"""
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_read == 0
+    ).update({"is_read": 1})
+    db.commit()
+    return {"message": "已全部标记为已读", "success": True}
 
 # ========== Dispute API ==========
 @app.post("/api/disputes")
@@ -752,6 +873,9 @@ def create_dispute(data: DisputeCreate, current_user: User = Depends(get_current
     # 检查是否为订单参与方
     if order.buyer_id != current_user.id and order.seller_id != current_user.id:
         raise HTTPException(403, "只有订单参与方才能发起纠纷")
+    # 检查订单状态是否允许发起纠纷
+    if order.status not in ["进行中", "待验收"]:
+        raise HTTPException(400, f"当前订单状态（{order.status}）不允许发起纠纷")
     # 检查是否已有处理中的纠纷
     existing = db.query(Dispute).filter(
         Dispute.order_id == data.order_id, 
@@ -789,9 +913,28 @@ def upload_evidence(dispute_id: int, file: UploadFile = File(...),
 @app.get("/api/disputes")
 def list_disputes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     disputes = db.query(Dispute).filter(Dispute.initiator_id == current_user.id).all()
-    return [{"id": d.id, "order_id": d.order_id, "description": d.description,
-             "evidence_url": d.evidence_url, "evidence_files": d.evidence_files,
-             "status": d.status, "result": d.result, "created_at": str(d.created_at)} for d in disputes]
+    result = []
+    for d in disputes:
+        # 获取关联订单的标题
+        order_title = None
+        if d.order_id:
+            order = db.query(Order).filter(Order.id == d.order_id).first()
+            if order and order.demand:
+                order_title = order.demand.title
+        
+        result.append({
+            "id": d.id, 
+            "order_id": d.order_id, 
+            "order_title": order_title or f"订单 #{d.order_id}",
+            "dispute_type": "服务纠纷",  # 默认类型，可根据description推断
+            "description": d.description,
+            "evidence_url": d.evidence_url, 
+            "evidence_files": d.evidence_files,
+            "status": d.status, 
+            "result": d.result, 
+            "created_at": str(d.created_at)
+        })
+    return result
 
 # ========== Admin API ==========
 @app.get("/api/admin/users")
