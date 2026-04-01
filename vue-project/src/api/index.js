@@ -1,7 +1,12 @@
 // API 配置
-// 开发环境使用 localhost，生产环境使用环境变量或相对路径
+// 外网访问时直接用 IP，内网/本地用 localhost
 const env = import.meta.env
-export const API_BASE = env.VITE_API_BASE_URL || (window.location.protocol + '//' + window.location.hostname + ':8000')
+const hostname = window.location.hostname
+// 如果是外网 IP 或非本地访问，用外网 IP；否则用 localhost
+const isLocalAccess = hostname === 'localhost' || hostname === '127.0.0.1'
+export const API_BASE = isLocalAccess 
+  ? 'http://localhost:8000' 
+  : `http://${hostname}:8000`
 
 // 封装的 API 模块
 export const api = {
