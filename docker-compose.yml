@@ -67,7 +67,7 @@ services:
 # ==================== Nginx 反向代理（生产模式） ====================
 # 前端构建完成后，Nginx 直接服务静态文件并代理 API
   nginx:
-    image: ccr.ccs.tencentyun.com/library/nginx:alpine
+    image: nginx:alpine
     container_name: tushen-nginx
     restart: unless-stopped
     ports:
