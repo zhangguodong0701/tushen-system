@@ -1,28 +1,29 @@
 # ============================================
 # 图审云平台 - 前端 Dockerfile
 # ============================================
-# 基于 Node 18 构建 Vue 3 项目
+# Vue 3 + Vite 5 项目优化版本
 # ============================================
 
+# 第一阶段：构建
 FROM node:18-alpine AS builder
 
-# 设置工作目录
 WORKDIR /app
 
-# 配置 npm 镜像（加速构建）
-RUN npm config set registry https://registry.npmmirror.com
+# 先复制 package.json，利用 Docker 缓存层
+COPY vue-project/package.json vue-project/package-lock.json* ./
 
-# 复制前端代码
-COPY vue-project/ /app/
+# 使用国内 npm 镜像加速安装
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm ci --prefer-offline --no-audit || npm install --prefer-offline --no-audit
 
-# 安装依赖
-RUN npm install
+# 复制源代码
+COPY vue-project/ ./
 
 # 构建生产版本
 RUN npm run build
 
 # ============================================
-# 第二阶段：使用 Nginx 服务静态文件
+# 第二阶段：Nginx 服务静态文件
 # ============================================
 FROM nginx:alpine
 
@@ -35,8 +36,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # 复制 Nginx 配置
 COPY nginx.frontend.conf /etc/nginx/conf.d/default.conf
 
-# 暴露端口
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+
 EXPOSE 80
 
-# 启动 Nginx
 CMD ["nginx", "-g", "daemon off;"]
