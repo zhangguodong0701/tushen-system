@@ -1,6 +1,6 @@
-# 图审云平台 - Linux 部署指南
+# 图审云平台 Docker 部署指南
 
-> 本文档介绍如何将图审云平台部署到 Linux 生产环境
+> 本文档介绍如何使用 Docker 和 Docker Compose 部署图审云平台
 
 ---
 
@@ -8,456 +8,392 @@
 
 | 项目 | 要求 |
 |------|------|
-| 操作系统 | Ubuntu 20.04+ / CentOS 7+ |
-| Python | 3.9+ |
-| Node.js | 18+ |
-| Nginx | 1.18+ |
-| 磁盘 | 至少 10GB可用空间 |
+| Docker | 20.10+ |
+| Docker Compose | 2.0+ |
+| 磁盘 | 至少 10GB 可用空间 |
 
 ---
 
-## 二、项目结构
+## 二、快速部署
+
+### 2.1 一键启动
+
+```bash
+# 克隆项目
+git clone https://github.com/zhangguodong0701/tushen-system.git
+cd tushen-system
+
+# 启动所有服务（首次会自动构建）
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+```
+
+### 2.2 访问服务
+
+| 服务 | 地址 |
+|------|------|
+| 前端 | http://your-server-ip:80 |
+| 后端 API | http://your-server-ip:8000 |
+| API 文档 | http://your-server-ip:8000/docs |
+| Nginx | http://your-server-ip:80 |
+
+---
+
+## 三、服务架构
+
+```
+                    ┌─────────────────────────────────┐
+                    │         Nginx (:80)              │
+                    │  静态文件 + API 反向代理         │
+                    └────────────┬────────────────────┘
+                                 │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+              ▼                 ▼                 ▼
+    ┌─────────────────┐ ┌─────────────┐ ┌──────────────────┐
+    │   Vue Frontend  │ │  Backend    │ │    MySQL         │
+    │   (构建产物)     │ │  FastAPI    │ │   (可选数据库)   │
+    │   Port: 无       │ │  :8000      │ │   :3306          │
+    └─────────────────┘ └──────┬──────┘ └──────────────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │                     │
+                    ▼                     ▼
+          ┌─────────────────┐   ┌─────────────────┐
+          │   SQLite DB     │   │   Uploads       │
+          │   (挂载卷)       │   │   (挂载卷)       │
+          └─────────────────┘   └─────────────────┘
+```
+
+---
+
+## 四、配置说明
+
+### 4.1 环境变量
+
+创建 `.env` 文件配置环境：
+
+```bash
+# 复制示例配置
+cp .env.example .env
+
+# 编辑配置
+nano .env
+```
+
+关键配置项：
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `MYSQL_HOST` | MySQL 主机（可选） | 空（使用 SQLite） |
+| `MYSQL_PORT` | MySQL 端口 | 3306 |
+| `MYSQL_DATABASE` | MySQL 数据库名 | tushen |
+| `MYSQL_USER` | MySQL 用户名 | tushen |
+| `MYSQL_PASSWORD` | MySQL 密码 | tushen123 |
+| `BACKEND_PORT` | 后端端口 | 8000 |
+| `FRONTEND_PORT` | 前端端口（直接访问 Vue） | 5173 |
+
+### 4.2 使用 MySQL（可选，生产推荐）
+
+如果需要使用 MySQL 数据库，取消 `docker-compose.yml` 中 MySQL 服务的注释，并修改后端配置。
+
+---
+
+## 五、目录结构
 
 ```
 tushen-system/
-├── backend/          # FastAPI 后端
-│   ├── main.py       # 主程序
-│   ├── models.py     # 数据模型
-│   ├── tushen.db     # SQLite 数据库
-│   └── uploads/      # 上传文件目录
-└── vue-project/     # Vue 3 前端
-    ├── src/          # 源代码
-    └── dist/         # 构建产物（需执行 build 后生成）
+├── docker-compose.yml      # Docker Compose 配置
+├── Dockerfile              # 后端镜像构建
+├── Dockerfile.frontend     # 前端镜像构建
+├── nginx.conf              # Nginx 配置
+├── .dockerignore           # Docker 忽略文件
+├── .env.example            # 环境变量示例
+├── backend/                # 后端代码
+│   ├── main.py
+│   ├── uploads/            # 文件上传目录（挂载卷）
+│   └── tushen.db           # SQLite 数据库（挂载卷）
+└── vue-project/            # 前端代码
+    ├── src/
+    └── dist/                # 构建产物
 ```
 
 ---
 
-## 三、后端部署（FastAPI）
+## 六、常用命令
 
-### 3.1 安装系统依赖
+### 6.1 启动/停止
 
 ```bash
-# Ubuntu
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv nginx certbot
+# 启动所有服务
+docker-compose up -d
 
-# CentOS
-sudo yum install -y python3 python3-pip nginx
+# 启动并重新构建
+docker-compose up -d --build
+
+# 停止服务
+docker-compose down
+
+# 停止并删除数据卷（慎用）
+docker-compose down -v
 ```
 
-### 3.2 创建部署用户（可选）
+### 6.2 查看日志
 
 ```bash
-sudo useradd -m -s /bin/bash tushen
-sudo mkdir -p /opt/tushen-system
-sudo chown tushen:tushen /opt/tushen-system
+# 查看所有服务日志
+docker-compose logs -f
+
+# 查看后端日志
+docker-compose logs -f backend
+
+# 查看前端日志
+docker-compose logs -f frontend
+
+# 查看 Nginx 日志
+docker-compose logs -f nginx
 ```
 
-### 3.3 上传代码
+### 6.3 进入容器
 
 ```bash
-# 将项目上传到服务器
-scp -r tushen-system.tar.gz tushen@your-server:/opt/
-ssh tushen@your-server
-cd /opt
-tar -xzf tushen-system.tar.gz
+# 进入后端容器
+docker exec -it tushen-backend bash
+
+# 进入前端容器
+docker exec -it tushen-frontend sh
 ```
 
-### 3.4 安装 Python 依赖
+### 6.4 数据管理
 
 ```bash
-cd /opt/tushen-system/backend
+# 备份数据库
+docker exec tushen-backend sh -c "cp /app/tushen.db /uploads/tushen_backup_$(date +%Y%m%d).db"
 
-# 创建虚拟环境
-python3 -m venv venv
-source venv/bin/activate
+# 查看备份
+ls -la backend/uploads/
 
-# 安装依赖
-pip install --upgrade pip
-pip install fastapi uvicorn sqlalchemy python-multipart \
-  passlib bcrypt python-jose pydantic python-dotenv
-
-# 初始化数据库（如需要）
-# python main.py  # 首次启动会自动创建数据库表
+# 恢复数据库
+docker cp backup.db tushen-backend:/app/tushen.db
+docker-compose restart backend
 ```
 
-### 3.5 配置环境变量（可选）
+---
+
+## 七、升级更新
+
+### 7.1 拉取最新代码
 
 ```bash
-# 创建 .env 文件
-cat > /opt/tushen-system/backend/.env << EOF
-SECRET_KEY=your-secret-key-here
-DATABASE_URL=sqlite:///./tushen.db
-EOF
+cd tushen-system
+git pull origin master
 ```
 
-### 3.6 直接启动（开发/测试用）
+### 7.2 重新构建并启动
 
 ```bash
-cd /opt/tushen-system/backend
-source venv/bin/activate
-nohup python main.py > backend.log 2>&1 &
-echo "Backend started"
+docker-compose down
+docker-compose up -d --build
 ```
 
-验证后端是否正常运行：
+### 7.3 单独更新某个服务
+
 ```bash
+# 只更新后端
+docker-compose up -d --build backend
+
+# 只更新前端
+docker-compose up -d --build frontend
+```
+
+---
+
+## 八、Nginx 配置说明
+
+`nginx.conf` 主要配置：
+
+- **静态文件服务**：直接提供 Vue 构建产物
+- **API 反向代理**：将 `/api` 请求转发到后端
+- **上传文件访问**：`/uploads` 路径直接访问上传文件
+- **SPA 支持**：所有路由重定向到 `index.html`
+- **Gzip 压缩**：减少传输体积
+- **安全头**：X-Frame-Options、X-Content-Type-Options 等
+
+---
+
+## 九、数据持久化
+
+以下目录作为 Docker 挂载卷，删除容器后数据保留：
+
+| 宿主机路径 | 容器内路径 | 说明 |
+|-----------|-----------|------|
+| `./backend/uploads` | `/app/uploads` | 上传文件 |
+| `./backend/tushen.db` | `/app/tushen.db` | SQLite 数据库 |
+| `./frontend/dist` | `/usr/share/nginx/html` | Vue 构建产物 |
+
+---
+
+## 十、故障排查
+
+### 10.1 服务启动失败
+
+```bash
+# 查看详细日志
+docker-compose logs
+
+# 检查容器状态
+docker-compose ps
+
+# 检查端口占用
+netstat -tlnp | grep -E '80|8000|3306'
+```
+
+### 10.2 前端无法访问
+
+```bash
+# 检查 Nginx 容器
+docker-compose logs nginx
+
+# 检查前端构建产物是否存在
+ls -la frontend/dist/
+```
+
+### 10.3 后端 API 无法访问
+
+```bash
+# 检查后端容器
+docker-compose logs backend
+
+# 进入容器检查
+docker exec -it tushen-backend bash
 curl http://localhost:8000/api/demands
 ```
 
-### 3.7 生产环境：Gunicorn + Uvicorn Worker（推荐）
+### 10.4 数据库问题
 
 ```bash
-pip install gunicorn
+# 检查数据库文件
+ls -la backend/tushen.db
 
-# 启动（4个worker）
-gunicorn main:app \
-  -w 4 \
-  -k uvicorn.workers.UvicornWorker \
-  -b 127.0.0.1:8000 \
-  --access-logfile /opt/tushen-system/backend/access.log \
-  --error-logfile /opt/tushen-system/backend/error.log \
-  --daemon
-
-echo "Gunicorn started with 4 workers"
-```
-
-### 3.8 用 systemd 管理后端进程（推荐）
-
-```bash
-sudo tee /etc/systemd/system/tushen-backend.service > /dev/null << 'EOF'
-[Unit]
-Description=Tushen Backend API
-After=network.target
-
-[Service]
-User=tushen
-Group=tushen
-WorkingDirectory=/opt/tushen-system/backend
-ExecStart=/opt/tushen-system/backend/venv/bin/gunicorn main:app \
-    -w 4 \
-    -k uvicorn.workers.UvicornWorker \
-    -b 127.0.0.1:8000
-Restart=always
-RestartSec=5
-StandardOutput=append:/opt/tushen-system/backend/stdout.log
-StandardError=append:/opt/tushen-system/backend/stderr.log
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable tushen-backend
-sudo systemctl start tushen-backend
-sudo systemctl status tushen-backend
-```
-
-常用命令：
-```bash
-sudo systemctl status tushen-backend   # 查看状态
-sudo systemctl restart tushen-backend  # 重启
-sudo systemctl stop tushen-backend     # 停止
-sudo journalctl -u tushen-backend -f   # 查看日志
+# 重新初始化数据库（慎用，会丢失数据）
+rm backend/tushen.db
+docker-compose restart backend
 ```
 
 ---
 
-## 四、前端部署（Vue 3）
+## 十一、安全建议
 
-### 4.1 安装 Node.js（如未安装）
-
-```bash
-# Ubuntu
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# 验证
-node -v   # v18.x.x
-npm -v
-```
-
-### 4.2 安装依赖并构建
-
-```bash
-cd /opt/tushen-system/vue-project
-
-# 安装依赖
-npm install
-
-# 构建生产版本
-npm run build
-```
-
-构建完成后，`dist/` 目录即为静态文件。
-
-### 4.3 配置 Nginx
-
-```bash
-sudo tee /etc/nginx/sites-available/tushen > /dev/null << 'EOF'
-server {
-    listen 80;
-    server_name your-domain.com;   # 替换为你的域名或IP
-
-    # 前端静态文件
-    root /opt/tushen-system/vue-project/dist;
-    index index.html;
-
-    # Vue Router SPA 支持
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API 反向代理到后端
-    location /api {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 上传文件访问
-    location /uploads {
-        alias /opt/tushen-system/backend/uploads;
-        expires 7d;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # 安全头
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    # Gzip 压缩
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
-    gzip_min_length 1000;
-}
-EOF
-
-# 启用站点
-sudo ln -sf /etc/nginx/sites-available/tushen /etc/nginx/sites-enabled/
-
-# 测试并重载
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 4.4 HTTPS 配置（使用 Let's Encrypt）
+1. **修改默认端口**：生产环境修改 `docker-compose.yml` 中的端口映射
+2. **配置防火墙**：只开放 80/443 端口
+3. **定期备份**：执行 `backend/uploads/tushen_backup_*.db` 备份
+4. **HTTPS 配置**：使用 Let's Encrypt 配置 HTTPS
 
 ```bash
 # 安装 Certbot
-sudo apt install -y certbot python3-certbot-nginx
+docker exec tushen-nginx apt-get update
+docker exec tushen-nginx apt-get install -y certbot python3-certbot-nginx
 
-# 获取证书（需要域名已解析）
-sudo certbot --nginx -d your-domain.com
-
-# 自动续期测试
-sudo certbot renew --dry-run
+# 获取证书
+docker exec tushen-nginx certbot --nginx -d your-domain.com
 ```
 
 ---
 
-## 五、目录权限配置
+## 十二、一键部署脚本
 
-```bash
-# 设置目录所有者
-sudo chown -R tushen:tushen /opt/tushen-system
-
-# 确保 uploads 目录可写
-sudo chmod -R 755 /opt/tushen-system/backend/uploads
-sudo chmod 777 /opt/tushen-system/backend/uploads
-
-# 数据库文件权限
-sudo chmod 644 /opt/tushen-system/backend/tushen.db
-```
-
----
-
-## 六、一键部署脚本
-
-将以下脚本保存为 `deploy.sh`，在服务器上执行即可完成部署：
+创建 `deploy.sh`：
 
 ```bash
 #!/bin/bash
-# deploy.sh - 图审云平台一键部署脚本
-
 set -e
 
-APP_DIR="/opt/tushen-system"
-BACKEND_DIR="$APP_DIR/backend"
-FRONTEND_DIR="$APP_DIR/vue-project"
+echo "========== 图审云平台 Docker 部署 =========="
 
-echo "========== 图审云平台部署脚本 =========="
-
-# 1. 停止旧服务
-echo "[1/7] 停止旧服务..."
-sudo systemctl stop tushen-backend 2>/dev/null || true
-pkill -f "gunicorn.*main:app" 2>/dev/null || true
-
-# 2. 更新代码（如使用 git）
-# cd $APP_DIR && git pull origin master
-
-# 3. 安装后端依赖
-echo "[2/7] 安装后端依赖..."
-cd $BACKEND_DIR
-source venv/bin/activate
-pip install --quiet -r requirements.txt 2>/dev/null || pip install --quiet fastapi uvicorn sqlalchemy python-multipart passlib bcrypt python-jose pydantic
-
-# 4. 构建前端
-echo "[3/7] 构建前端..."
-cd $FRONTEND_DIR
-npm install --silent
-npm run build --silent
-
-# 5. 启动后端
-echo "[4/7] 启动后端服务..."
-cd $BACKEND_DIR
-source venv/bin/activate
-nohup gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000 \
-  --access-logfile access.log --error-logfile error.log --daemon
-
-# 6. 重载 Nginx
-echo "[5/7] 重载 Nginx..."
-sudo nginx -t && sudo systemctl reload nginx
-
-# 7. 验证服务
-echo "[6/7] 验证服务状态..."
-sleep 2
-if curl -sf http://localhost:8000/api/demands > /dev/null; then
-    echo "✅ 后端服务正常"
-else
-    echo "⚠️ 后端服务可能未正常启动，请检查日志"
+# 1. 检查 Docker
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker 未安装"
+    exit 1
 fi
 
-if [ -d "$FRONTEND_DIR/dist" ]; then
-    echo "✅ 前端构建成功"
+if ! command -v docker-compose &> /dev/null; then
+    echo "❌ Docker Compose 未安装"
+    exit 1
+fi
+
+# 2. 拉取最新代码
+echo "[1/4] 拉取最新代码..."
+git pull origin master
+
+# 3. 停止旧服务
+echo "[2/4] 停止旧服务..."
+docker-compose down
+
+# 4. 重新构建并启动
+echo "[3/4] 构建并启动服务..."
+docker-compose up -d --build
+
+# 5. 验证
+echo "[4/4] 验证服务..."
+sleep 5
+if curl -sf http://localhost:80 > /dev/null; then
+    echo "✅ 前端服务正常"
 else
-    echo "⚠️ 前端构建可能失败"
+    echo "⚠️ 前端服务可能未正常启动"
+fi
+
+if curl -sf http://localhost:8000/docs > /dev/null; then
+    echo "✅ 后端服务正常"
+else
+    echo "⚠️ 后端服务可能未正常启动"
 fi
 
 echo ""
 echo "========== 部署完成 =========="
-echo "前端访问：http://your-domain.com"
-echo "API 文档：http://your-domain.com/docs"
+echo "前端：http://$(hostname -I | awk '{print $1}')"
+echo "API：http://$(hostname -I | awk '{print $1}'):8000/docs"
 echo "================================"
 ```
 
 ```bash
-# 使用方式
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
 ---
 
-## 七、备份策略
-
-### 7.1 数据库备份
+## 十三、快速命令汇总
 
 ```bash
-# 手动备份
-cp /opt/tushen-system/backend/tushen.db /backup/tushen_$(date +%Y%m%d).db
+# 启动
+docker-compose up -d
 
-# 自动备份（每天凌晨2点）
-sudo tee /etc/cron.d/tushen-backup > /dev/null << 'EOF'
-0 2 * * * root cp /opt/tushen-system/backend/tushen.db /backup/tushen_$(date +\%Y\%m\%d).db && find /backup -name "tushen_*.db" -mtime +7 -delete
-EOF
-```
+# 停止
+docker-compose down
 
-### 7.2 文件备份
+# 重启
+docker-compose restart
 
-```bash
-# 备份上传文件
-tar -czf /backup/uploads_$(date +%Y%m%d).tar.gz /opt/tushen-system/backend/uploads
-```
+# 查看状态
+docker-compose ps
 
----
+# 查看日志
+docker-compose logs -f
 
-## 八、常见问题
+# 重新构建
+docker-compose up -d --build
 
-### Q1: 后端启动报错 `ModuleNotFoundError`
-```bash
-# 确保在虚拟环境中
-cd /opt/tushen-system/backend
-source venv/bin/activate
-pip install -r requirements.txt
-```
+# 进入后端容器
+docker exec -it tushen-backend bash
 
-### Q2: 前端构建失败 `npm ERR!`
-```bash
-# 清除缓存重试
-cd /opt/tushen-system/vue-project
-rm -rf node_modules package-lock.json
-npm cache clean --force
-npm install
-npm run build
-```
+# 备份数据库
+docker exec tushen-backend sh -c "cp /app/tushen.db /uploads/backup_$(date +%Y%m%d).db"
 
-### Q3: Nginx 502 Bad Gateway
-```bash
-# 检查后端是否运行
-sudo systemctl status tushen-backend
-curl http://127.0.0.1:8000/api/demands
-
-# 检查 Nginx 日志
-sudo tail -f /var/log/nginx/error.log
-```
-
-### Q4: 上传文件失败
-```bash
-# 检查 uploads 目录权限
-ls -la /opt/tushen-system/backend/uploads
-sudo chmod 777 /opt/tushen-system/backend/uploads
-```
-
-### Q5: 数据库并发写入问题（高并发场景）
-SQLite 不适合高并发写入，建议切换到 PostgreSQL：
-```python
-# 修改 .env
-DATABASE_URL=postgresql://user:password@localhost:5432/tushen
-```
-
----
-
-## 九、安全加固建议
-
-1. **修改默认端口**：后端不要直接暴露在公网
-2. **配置防火墙**：只开放 80/443 端口
-3. **定期更新依赖**：`pip list --outdated` 检查过期包
-4. **关闭 DEBUG 模式**：生产环境确保 `debug=False`
-5. **设置文件大小限制**：Nginx 限制上传大小
-
-```nginx
-# Nginx 上传大小限制（默认 1M）
-client_max_body_size 50M;
-```
-
----
-
-## 十、快速命令汇总
-
-```bash
-# 查看后端状态
-sudo systemctl status tushen-backend
-
-# 查看后端日志
-sudo journalctl -u tushen-backend -f
-
-# 重启后端
-sudo systemctl restart tushen-backend
-
-# 重载 Nginx
-sudo systemctl reload nginx
-
-# 重启 Nginx
-sudo systemctl restart nginx
-
-# 查看 Nginx 日志
-sudo tail -f /var/log/nginx/access.log
-sudo tail -f /var/log/nginx/error.log
-
-# 检查端口占用
-sudo ss -tlnp | grep -E '80|443|8000'
+# 更新代码并重启
+git pull && docker-compose up -d --build
 ```

@@ -1,0 +1,60 @@
+# ============================================
+# Docker 忽略文件
+# ============================================
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# 测试
+*.test.py
+test_*.py
+check_*.py
+migrate_*.py
+
+# 日志
+*.log
+*.log.*
+
+# 文档
+DEPLOY_LINUX.md
+*.docx
+*.xlsx
+
+# 临时文件
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# 构建产物（前端会在 Docker 中重新构建）
+vue-project/dist/
+
+# 数据库文件（会在容器中创建）
+*.db
+
+# 上传文件
+backend/uploads/*
+!backend/uploads/.gitkeep

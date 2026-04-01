@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # ==================== MySQL 数据库（可选） ====================
+  # 如需使用 MySQL，取消下方注释并配置环境变量
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: tushen-mysql
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root123
+  #     MYSQL_DATABASE: tushen
+  #     MYSQL_USER: tushen
+  #     MYSQL_PASSWORD: tushen123
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   ports:
+  #     - "3306:3306"
+  #   networks:
+  #     - tushen-network
+  #   command: --default-authentication-plugin=mysql_native_password
+
+  # ==================== 后端服务 ====================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile
+    container_name: tushen-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/tushen.db:/app/tushen.db
+    environment:
+      - DATABASE_URL=sqlite:///./tushen.db
+      - UPLOAD_DIR=/app/uploads
+    networks:
+      - tushen-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/demands"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==================== 前端构建（开发模式） ====================
+  frontend:
+    build:
+      context: ./vue-project
+      dockerfile: ../Dockerfile.frontend
+    container_name: tushen-frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
+    volumes:
+      - ./vue-project:/app
+      - /app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    networks:
+      - tushen-network
+    depends_on:
+      - backend
+    # 前端开发模式，使用 vite dev server
+
+# ==================== Nginx 反向代理（生产模式） ====================
+# 前端构建完成后，Nginx 直接服务静态文件并代理 API
+  nginx:
+    image: nginx:alpine
+    container_name: tushen-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./vue-project/dist:/usr/share/nginx/html:ro
+      - ./backend/uploads:/uploads:ro
+    networks:
+      - tushen-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  tushen-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
