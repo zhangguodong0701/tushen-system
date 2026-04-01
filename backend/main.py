@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
@@ -171,7 +171,7 @@ def user_to_dict(u: User):
         "id_card_front": u.id_card_front or "",
         "id_card_back": u.id_card_back or "",
         "business_license": u.business_license or "",
-        "created_at": str(u.created_at)
+        "created_at": u.created_at.isoformat() if u.created_at else None
     }
 
 def demand_to_dict(d: Demand):
@@ -938,7 +938,7 @@ def list_disputes(current_user: User = Depends(get_current_user), db: Session = 
 
 # ========== Admin API ==========
 @app.get("/api/admin/users")
-def admin_list_users(status: Optional[str] = None, db: Session = Depends(get_db), admin=Depends(get_current_admin)):
+def admin_list_users(status: Optional[str] = None, db: Session = Depends(get_db), reviewer=Depends(get_current_reviewer)):
     q = db.query(User)
     if status:
         q = q.filter(User.status == status)
@@ -946,7 +946,7 @@ def admin_list_users(status: Optional[str] = None, db: Session = Depends(get_db)
     return [user_to_dict(u) for u in users]
 
 @app.post("/api/admin/users/{user_id}/approve")
-def approve_user(user_id: int, db: Session = Depends(get_db), admin=Depends(get_current_admin)):
+def approve_user(user_id: int, db: Session = Depends(get_db), reviewer=Depends(get_current_reviewer)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "用户不存在")
@@ -958,13 +958,16 @@ def approve_user(user_id: int, db: Session = Depends(get_db), admin=Depends(get_
     return {"message": "已审核通过"}
 
 @app.post("/api/admin/users/{user_id}/reject")
-def reject_user(user_id: int, db: Session = Depends(get_db), admin=Depends(get_current_admin)):
+async def reject_user(user_id: int, req: Request, db: Session = Depends(get_db), reviewer=Depends(get_current_reviewer)):
+    body = await req.json()
+    reason = body.get("reason", "")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "用户不存在")
     user.status = "驳回"
     db.commit()
-    notif = Notification(user_id=user_id, title="审核驳回", content="您的账号审核未通过，请完善资质后重新提交。")
+    reason_text = f"（原因：{reason}）" if reason else "请完善资质后重新提交。"
+    notif = Notification(user_id=user_id, title="审核驳回", content=f"您的账号审核未通过，{reason_text}")
     db.add(notif)
     db.commit()
     return {"message": "已驳回"}
@@ -1139,8 +1142,12 @@ def admin_list_feedbacks(db: Session = Depends(get_db), current_user: User = Dep
     return result
 
 @app.post("/api/admin/feedbacks/{feedback_id}/reply")
-def admin_reply_feedback(feedback_id: int, reply: str = Query(...),
+async def admin_reply_feedback(feedback_id: int, req: Request,
                          db: Session = Depends(get_db), current_user: User = Depends(get_current_reviewer)):
+    body = await req.json()
+    reply = body.get("reply", "").strip()
+    if not reply:
+        raise HTTPException(400, "回复内容不能为空")
     fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
     if not fb:
         raise HTTPException(404, "反馈不存在")
