@@ -1,0 +1,26 @@
+# ============================================
+# 图审云平台 - MySQL Dockerfile
+# ============================================
+
+FROM mysql:8.0
+
+# 设置环境变量
+ENV MYSQL_ROOT_PASSWORD=tushen_root_2026
+ENV MYSQL_DATABASE=tushen
+ENV MYSQL_USER=tushen
+ENV MYSQL_PASSWORD=tushen_pass_2026
+
+# 初始化脚本目录
+COPY init.sql /docker-entrypoint-initdb.d/
+
+# MySQL 配置
+RUN echo "[mysqld]" > /etc/mysql/conf.d/custom.cnf && \
+    echo "character-set-server=utf8mb4" >> /etc/mysql/conf.d/custom.cnf && \
+    echo "collation-server=utf8mb4_unicode_ci" >> /etc/mysql/conf.d/custom.cnf && \
+    echo "default-authentication-plugin=mysql_native_password" >> /etc/mysql/conf.d/custom.cnf
+
+# 暴露端口
+EXPOSE 3306
+
+# 启动命令
+CMD ["mysqld", "--user=mysql", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
