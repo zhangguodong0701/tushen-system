@@ -58,7 +58,7 @@ def admin_list_users(status: Optional[str] = None, keyword: Optional[str] = None
             (User.email.contains(keyword)) |
             (User.company_name.contains(keyword))
         )
-    q = q.order_by(User.created_at.desc())
+    q = q.order_by(User.created_at.asc())  # 最早的待审核用户排前面
     result = paginate_query(q, page, page_size)
     result["items"] = [user_to_dict(u) for u in result["items"]]
     return result

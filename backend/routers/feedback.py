@@ -37,7 +37,7 @@ def list_my_feedback(status: Optional[str] = None,
         q = db.query(Feedback).filter(Feedback.user_id == current_user.id)
     if status:
         q = q.filter(Feedback.status == status)
-    q = q.order_by(Feedback.created_at.desc())
+    q = q.order_by(Feedback.created_at.asc())  # 最早的反馈排前面
     page_result = paginate_query(q, page, page_size)
     items = []
     for f in page_result["items"]:
@@ -64,7 +64,7 @@ def admin_list_feedbacks(status: Optional[str] = None,
     q = db.query(Feedback)
     if status:
         q = q.filter(Feedback.status == status)
-    q = q.order_by(Feedback.created_at.desc())
+    q = q.order_by(Feedback.created_at.asc())  # 最早的反馈排前面
     page_result = paginate_query(q, page, page_size)
     items = []
     for f in page_result["items"]:

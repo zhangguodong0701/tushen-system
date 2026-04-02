@@ -81,7 +81,7 @@ def list_disputes(status: Optional[str] = None,
         q = db.query(Dispute).filter(Dispute.initiator_id == current_user.id)
     if status:
         q = q.filter(Dispute.status == status)
-    q = q.order_by(Dispute.created_at.desc())
+    q = q.order_by(Dispute.created_at.asc())  # 最早的纠纷排前面
     result = paginate_query(q, page, page_size)
     items = []
     for d in result["items"]:
