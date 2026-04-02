@@ -1,9 +1,5 @@
 <template>
   <div class="my-demands-page">
-    <div class="page-header">
-      <h2>我的需求</h2>
-    </div>
-
     <div class="card">
       <div class="card-body">
         <!-- 骨架屏 -->

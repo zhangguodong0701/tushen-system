@@ -45,6 +45,7 @@ function toastIcon(type) {
 body {
   margin: 0;
   padding: 0;
+  background: transparent;
 }
 
 /* Toast 样式 */

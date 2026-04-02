@@ -1,9 +1,5 @@
 <template>
   <div class="my-quotes-page">
-    <div class="page-header">
-      <h2>我的报价</h2>
-    </div>
-
     <div class="card">
       <div class="card-body">
         <!-- 骨架屏 -->

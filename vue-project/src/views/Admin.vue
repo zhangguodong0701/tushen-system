@@ -1,9 +1,5 @@
 <template>
   <div class="admin-page">
-    <div class="page-header">
-      <h2>后台管理</h2>
-    </div>
-
     <!-- Tab 切换 -->
     <div class="tabs">
       <button

@@ -19,13 +19,13 @@
         </router-link>
 
         <template v-if="authStore.isBuyer || authStore.isAdmin">
-          <router-link to="/demands/create" class="nav-item">
+          <router-link to="/demands/create" class="nav-item" :class="{ active: route.path === '/demands/create' }">
             <i class="fas fa-plus-circle"></i>
             <span v-if="!sidebarCollapsed">发布需求</span>
           </router-link>
         </template>
 
-        <router-link to="/demands" class="nav-item" :class="{ active: route.path.startsWith('/demands') }">
+        <router-link to="/demands" class="nav-item" :class="{ active: route.path === '/demands' }">
           <i class="fas fa-list"></i>
           <span v-if="!sidebarCollapsed">需求大厅</span>
         </router-link>

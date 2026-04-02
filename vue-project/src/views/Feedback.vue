@@ -1,9 +1,5 @@
 <template>
   <div class="feedback-page">
-    <div class="page-header">
-      <h2>投诉反馈</h2>
-    </div>
-
     <!-- 提交反馈 -->
     <div class="card">
       <div class="card-header">

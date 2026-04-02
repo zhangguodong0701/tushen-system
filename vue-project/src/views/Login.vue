@@ -477,61 +477,62 @@ async function handleRegister() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 60px;
+  padding: 48px;
   color: white;
   position: relative;
   z-index: 1;
+  min-height: 100vh;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 60px;
+  gap: 16px;
+  margin-bottom: 48px;
 }
 
 .brand-icon {
-  width: 80px;
-  height: 80px;
+  width: 64px;
+  height: 64px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  font-size: 32px;
 }
 
 .brand-text h1 {
-  font-size: 36px;
-  margin: 0 0 8px 0;
+  font-size: 32px;
+  margin: 0 0 6px 0;
   font-weight: 600;
 }
 
 .brand-text p {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   opacity: 0.9;
 }
 
 .features {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
 }
 
 .feature-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 14px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: 10px;
+  font-size: 15px;
 }
 
 .feature-item i {
-  font-size: 20px;
-  width: 24px;
+  font-size: 18px;
+  width: 20px;
 }
 
 .login-right {
@@ -542,33 +543,32 @@ async function handleRegister() {
   align-items: center;
   justify-content: center;
   padding: 40px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
   position: relative;
   z-index: 1;
 }
 
 .login-card {
   width: 100%;
-  max-width: 400px;
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 24px;
-  padding: 48px 40px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 420px;
+  background: white;
+  border-radius: 20px;
+  padding: 36px 32px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(102, 126, 234, 0.1);
 }
 
 .login-tabs {
   display: flex;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   background: #f0f2f5;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 4px;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 12px;
+  padding: 10px;
   border: none;
   background: none;
   font-size: 15px;
@@ -577,7 +577,7 @@ async function handleRegister() {
   cursor: pointer;
   position: relative;
   transition: all 0.3s ease;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .tab-btn.active {
@@ -591,13 +591,13 @@ async function handleRegister() {
 }
 
 .form-field {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   position: relative;
 }
 
 .form-field label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-size: 14px;
   color: #333;
   font-weight: 500;
@@ -611,25 +611,25 @@ async function handleRegister() {
 
 .input-wrapper i {
   position: absolute;
-  left: 14px;
+  left: 12px;
   color: #999;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .input-wrapper input,
 .form-field select {
   width: 100%;
-  padding: 14px 16px 14px 44px;
+  padding: 12px 14px 12px 40px;
   border: 2px solid #e0e0e0;
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: 10px;
+  font-size: 14px;
   transition: all 0.3s ease;
   box-sizing: border-box;
   background: #fafbfc;
 }
 
 .form-field select {
-  padding-left: 16px;
+  padding-left: 14px;
 }
 
 .input-wrapper input:hover,
@@ -698,7 +698,7 @@ async function handleRegister() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .checkbox-label {
@@ -718,13 +718,13 @@ async function handleRegister() {
 .role-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .role-card {
-  padding: 16px;
+  padding: 14px;
   border: 2px solid #ddd;
-  border-radius: 12px;
+  border-radius: 10px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s;
@@ -740,9 +740,9 @@ async function handleRegister() {
 }
 
 .role-card i {
-  font-size: 28px;
+  font-size: 24px;
   color: #667eea;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .role-card span {
@@ -760,7 +760,7 @@ async function handleRegister() {
 
 .btn-block {
   width: 100%;
-  padding: 14px;
-  font-size: 16px;
+  padding: 12px;
+  font-size: 15px;
 }
 </style>

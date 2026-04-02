@@ -1,9 +1,5 @@
 <template>
   <div class="disputes-page">
-    <div class="page-header">
-      <h2>纠纷处理</h2>
-    </div>
-
     <!-- 纠纷列表 -->
     <div class="card">
       <div class="card-body">
@@ -50,35 +46,92 @@
     <!-- 纠纷详情弹窗 -->
     <div v-if="selectedDispute" class="modal-overlay" @click.self="selectedDispute = null">
       <div class="modal">
+        <!-- 标题栏 -->
         <div class="modal-header">
-          <h3>纠纷详情</h3>
+          <div class="header-left">
+            <div class="header-icon">
+              <i class="fas fa-gavel"></i>
+            </div>
+            <div class="header-text">
+              <h3>纠纷详情</h3>
+              <span class="header-sub">ID #{{ selectedDispute.id }}</span>
+            </div>
+          </div>
           <button class="btn-close" @click="selectedDispute = null">
             <i class="fas fa-times"></i>
           </button>
         </div>
+
+        <!-- 内容区 -->
         <div class="modal-body">
-          <div class="info-row">
-            <label>订单：</label>
-            <span>{{ selectedDispute.order_title || `订单 #${selectedDispute.order_id}` }}</span>
+          <!-- 状态卡片 -->
+          <div class="status-card" :class="selectedDispute.status">
+            <div class="status-item">
+              <span class="status-label">纠纷类型</span>
+              <span class="status-value">{{ selectedDispute.dispute_type }}</span>
+            </div>
+            <div class="status-divider"></div>
+            <div class="status-item">
+              <span class="status-label">当前状态</span>
+              <span class="status-badge" :class="selectedDispute.status">
+                {{ selectedDispute.status }}
+              </span>
+            </div>
+            <div class="status-divider"></div>
+            <div class="status-item">
+              <span class="status-label">关联订单</span>
+              <span class="status-value">{{ selectedDispute.order_title || `订单 #${selectedDispute.order_id}` }}</span>
+            </div>
           </div>
-          <div class="info-row">
-            <label>纠纷类型：</label>
-            <span>{{ selectedDispute.dispute_type }}</span>
+
+          <!-- 纠纷描述 -->
+          <div class="detail-section">
+            <div class="section-header">
+              <i class="fas fa-file-alt"></i>
+              <span>纠纷描述</span>
+            </div>
+            <div class="section-content">
+              {{ selectedDispute.description || '暂无描述' }}
+            </div>
           </div>
-          <div class="info-row">
-            <label>状态：</label>
-            <span class="status-badge" :class="selectedDispute.status">
-              {{ selectedDispute.status }}
-            </span>
+
+          <!-- 处理结果 -->
+          <div v-if="selectedDispute.result" class="detail-section">
+            <div class="section-header success">
+              <i class="fas fa-check-circle"></i>
+              <span>处理结果</span>
+            </div>
+            <div class="section-content result-content">
+              {{ selectedDispute.result }}
+            </div>
           </div>
-          <div class="info-row">
-            <label>描述：</label>
-            <p>{{ selectedDispute.description }}</p>
+
+          <!-- 证据附件 -->
+          <div v-if="selectedDispute.evidence_url" class="detail-section">
+            <div class="section-header">
+              <i class="fas fa-paperclip"></i>
+              <span>证据附件</span>
+            </div>
+            <div class="evidence-item">
+              <i class="fas fa-file-pdf"></i>
+              <span class="evidence-name">证据文件</span>
+              <a :href="api.baseURL + selectedDispute.evidence_url" target="_blank" class="btn btn-sm btn-outline">
+                <i class="fas fa-download"></i>
+                下载查看
+              </a>
+            </div>
           </div>
-          <div v-if="selectedDispute.result" class="info-row">
-            <label>处理结果：</label>
-            <p>{{ selectedDispute.result }}</p>
+
+          <!-- 时间信息 -->
+          <div class="time-info">
+            <i class="far fa-clock"></i>
+            提交时间：{{ formatTime(selectedDispute.created_at) }}
           </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="selectedDispute = null">关闭</button>
         </div>
       </div>
     </div>
@@ -99,7 +152,8 @@ async function loadDisputes() {
   loading.value = true
   try {
     const data = await api.get('/api/disputes')
-    disputes.value = data
+    // 处理分页格式：后端返回 {total, page, page_size, items: []}
+    disputes.value = data.items || data || []
   } catch (e) {
     authStore.toast('加载纠纷列表失败', 'error')
   } finally {
@@ -127,30 +181,25 @@ onMounted(() => {
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .page-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   color: #333;
 }
 
-.loading {
+.loading,
+.empty-state {
   text-align: center;
   padding: 40px;
   color: #999;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 60px;
-  color: #999;
-}
-
 .empty-state i {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 36px;
+  margin-bottom: 12px;
 }
 
 .data-table {
@@ -160,7 +209,7 @@ onMounted(() => {
 
 .data-table th,
 .data-table td {
-  padding: 12px;
+  padding: 8px 10px;
   text-align: left;
   border-bottom: 1px solid #eee;
 }
@@ -169,6 +218,8 @@ onMounted(() => {
   background: #f8f9fa;
   font-weight: 600;
   color: #666;
+  font-size: 12px;
+  text-transform: uppercase;
 }
 
 .badge {
@@ -183,9 +234,10 @@ onMounted(() => {
 }
 
 .status-badge {
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
   font-size: 12px;
+  font-weight: 500;
 }
 
 .status-badge.待处理 {
@@ -203,63 +255,285 @@ onMounted(() => {
   color: #155724;
 }
 
+/* 弹窗样式 - B端设计规范 */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal {
   background: white;
   border-radius: 12px;
   width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  overflow-y: auto;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.3s ease;
 }
 
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 标题栏 */
 .modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
-.modal-header h3 {
-  margin: 0;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #999;
+.header-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
   font-size: 18px;
 }
 
-.modal-body {
-  padding: 24px;
+.header-text h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
-.info-row {
+.header-sub {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+  display: block;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close:hover {
+  background: #e8e8e8;
+  color: #333;
+}
+
+/* 内容区 */
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* 状态卡片 */
+.status-card {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.status-card.待处理 {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.05));
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.status-card.处理中 {
+  background: linear-gradient(135deg, rgba(0, 123, 255, 0.1), rgba(0, 123, 255, 0.05));
+  border: 1px solid rgba(0, 123, 255, 0.3);
+}
+
+.status-card.已解决 {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.05));
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.status-item {
+  flex: 1;
+  text-align: center;
+}
+
+.status-label {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+.status-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.status-divider {
+  width: 1px;
+  height: 40px;
+  background: #e0e0e0;
+  margin: 0 16px;
+}
+
+/* 详情区块 */
+.detail-section {
   margin-bottom: 16px;
 }
 
-.info-row label {
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.section-header i {
+  color: #667eea;
+  font-size: 14px;
+}
+
+.section-header.success i {
+  color: #28a745;
+}
+
+.section-content {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #555;
+}
+
+.result-content {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.08), rgba(40, 167, 69, 0.02));
+  border: 1px solid rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+/* 证据附件 */
+.evidence-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  gap: 12px;
+}
+
+.evidence-item i {
+  font-size: 24px;
+  color: #dc3545;
+}
+
+.evidence-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+
+/* 时间信息 */
+.time-info {
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  padding-top: 16px;
+  border-top: 1px dashed #eee;
+  margin-top: 16px;
+}
+
+.time-info i {
+  margin-right: 6px;
+}
+
+/* 底部按钮 */
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-secondary {
+  background: #f5f5f5;
   color: #666;
 }
 
-.info-row p {
-  margin: 8px 0 0 0;
+.btn-secondary:hover {
+  background: #e8e8e8;
   color: #333;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-outline {
+  background: white;
+  border: 1px solid #ddd;
+  color: #667eea;
+}
+
+.btn-outline:hover {
+  background: #f8f9fa;
+  border-color: #667eea;
 }
 </style>

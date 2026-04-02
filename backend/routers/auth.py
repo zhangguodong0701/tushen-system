@@ -8,7 +8,7 @@ import os, uuid
 
 from models import get_db, User
 from auth import verify_password, get_password_hash, create_access_token, get_current_user
-from schemas import UserRegister, UserUpdate
+from schemas import UserRegister, UserUpdate, ChangePassword
 from utils import user_to_dict, extract_notification_type
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
@@ -136,6 +136,21 @@ def update_me(data: UserUpdate, current_user: User = Depends(get_current_user), 
         setattr(current_user, k, v)
     db.commit()
     return user_to_dict(current_user)
+
+
+@router.post("/change-password")
+def change_password(data: ChangePassword, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """修改密码（需要验证旧密码）"""
+    # 验证旧密码是否正确
+    if not verify_password(data.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="旧密码错误")
+    # 检查新旧密码是否相同
+    if verify_password(data.new_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="新密码不能与旧密码相同")
+    # 更新密码
+    current_user.hashed_password = get_password_hash(data.new_password)
+    db.commit()
+    return {"message": "密码修改成功"}
 
 
 @router.post("/upload-cert")

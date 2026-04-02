@@ -1,7 +1,6 @@
 <template>
   <div class="notifications-page">
     <div class="page-header">
-      <h2>消息通知</h2>
       <button v-if="notifications.some(n => !n.is_read)" class="btn btn-outline" @click="markAllRead">
         <i class="fas fa-check-double"></i> 全部已读
       </button>

@@ -1,9 +1,5 @@
 <template>
   <div class="orders-page">
-    <div class="page-header">
-      <h2>订单管理</h2>
-    </div>
-
     <!-- 订单列表 -->
     <div class="card">
       <div class="card-body">
@@ -28,6 +24,7 @@
               <th>订单ID</th>
               <th>需求标题</th>
               <th>金额</th>
+              <th>付款方式</th>
               <th>状态</th>
               <th>创建时间</th>
               <th>操作</th>
@@ -38,6 +35,10 @@
               <td><span class="badge badge-gray">{{ order.id }}</span></td>
               <td>{{ order.demand_title || `需求 #${order.id}` }}</td>
               <td class="amount">¥{{ order.amount }}</td>
+              <td>
+                <span v-if="order.payment_type === '分阶段'" class="badge badge-info">分批</span>
+                <span v-else class="badge badge-gray">一次</span>
+              </td>
               <td>
                 <span class="status-badge" :class="order.status">
                   {{ statusText(order.status) }}
@@ -83,6 +84,11 @@
             <div class="info-item">
               <label>订单金额</label>
               <span class="amount">¥{{ selectedOrder.amount }}</span>
+            </div>
+            <div class="info-item">
+              <label>付款方式</label>
+              <span v-if="selectedOrder.payment_type === '分阶段'" class="badge badge-info">分阶段付款</span>
+              <span v-else class="badge badge-gray">一次性付款</span>
             </div>
             <div class="info-item">
               <label>订单状态</label>
@@ -336,25 +342,25 @@ onMounted(() => {
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .page-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   color: #333;
 }
 
 .loading,
 .empty-state {
   text-align: center;
-  padding: 60px;
+  padding: 40px;
   color: #999;
 }
 
 .empty-state i {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 36px;
+  margin-bottom: 12px;
 }
 
 .data-table {
@@ -364,7 +370,7 @@ onMounted(() => {
 
 .data-table th,
 .data-table td {
-  padding: 12px;
+  padding: 8px 10px;
   text-align: left;
   border-bottom: 1px solid #eee;
 }
@@ -389,6 +395,11 @@ onMounted(() => {
 .badge-gray {
   background: #e9ecef;
   color: #666;
+}
+
+.badge-info {
+  background: #d1ecf1;
+  color: #0c5460;
 }
 
 .status-badge {

@@ -1,9 +1,5 @@
 <template>
   <div class="reviewer-page">
-    <div class="page-header">
-      <h2>审核中心</h2>
-    </div>
-
     <!-- Tab 切换 -->
     <div class="tabs">
       <button
