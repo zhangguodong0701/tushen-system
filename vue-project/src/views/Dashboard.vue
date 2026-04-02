@@ -28,7 +28,7 @@
     </div>
 
     <!-- 普通用户统计卡片 -->
-    <div v-if="authStore.isBuyer || authStore.isSeller" class="stats-grid">
+    <div v-if="!authStore.isAdmin && !authStore.isReviewer" class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon" style="background: rgba(102, 126, 234, 0.1); color: #667eea;">
           <i class="fas fa-list"></i>
@@ -114,7 +114,7 @@
     </div>
 
     <!-- 最近活动 - 普通用户 -->
-    <div v-if="authStore.isBuyer || authStore.isSeller" class="content-grid">
+    <div v-if="!authStore.isAdmin && !authStore.isReviewer" class="content-grid">
       <div class="card">
         <div class="card-header">
           <h3><i class="fas fa-clock"></i> 最近通知</h3>
