@@ -25,7 +25,7 @@
     <!-- 我的反馈记录 -->
     <div class="card">
       <div class="card-header">
-        <h3><i class="fas fa-history"></i> 我的反馈记录</h3>
+        <h3><i class="fas fa-history"></i>{{ authStore.isReviewer || authStore.isAdmin ? '反馈管理' : '我的反馈记录' }}</h3>
       </div>
       <div class="card-body">
         <div v-if="loading" class="loading">
@@ -38,6 +38,9 @@
         <div v-else class="feedback-list">
           <div v-for="f in feedbacks" :key="f.id" class="feedback-item">
             <div class="feedback-header">
+              <span v-if="authStore.isReviewer || authStore.isAdmin" class="feedback-user">
+                <i class="fas fa-user"></i> {{ f.user_name || '用户' + f.user_id }}
+              </span>
               <span class="feedback-time">{{ formatTime(f.created_at) }}</span>
               <span class="status-badge" :class="f.status">{{ f.status }}</span>
             </div>
@@ -45,6 +48,18 @@
             <div v-if="f.reply" class="feedback-reply">
               <div class="reply-label"><i class="fas fa-reply"></i> 官方回复：</div>
               <div class="reply-content">{{ f.reply }}</div>
+            </div>
+            <!-- 审核员回复功能 -->
+            <div v-if="(authStore.isReviewer || authStore.isAdmin) && !f.reply" class="feedback-actions">
+              <textarea
+                v-model="replyContent"
+                placeholder="输入回复内容..."
+                rows="2"
+                class="reply-input"
+              ></textarea>
+              <button class="btn btn-sm btn-primary" @click="replyFeedback(f.id)">
+                <i class="fas fa-reply"></i> 回复
+              </button>
             </div>
           </div>
         </div>
@@ -63,6 +78,7 @@ const feedbackContent = ref('')
 const feedbacks = ref([])
 const loading = ref(false)
 const submitting = ref(false)
+const replyContent = ref('')
 
 async function submitFeedback() {
   if (!feedbackContent.value || feedbackContent.value.length < 10) {
@@ -87,7 +103,8 @@ async function loadFeedbacks() {
   loading.value = true
   try {
     const data = await api.get('/api/feedback')
-    feedbacks.value = data
+    // 处理分页格式
+    feedbacks.value = data.items || data || []
   } catch (e) {
     authStore.toast('加载反馈记录失败', 'error')
   } finally {
@@ -100,9 +117,25 @@ function formatTime(time) {
   return new Date(time).toLocaleString('zh-CN')
 }
 
+async function replyFeedback(feedbackId) {
+  if (!replyContent.value || replyContent.value.trim().length < 5) {
+    authStore.toast('回复内容至少5个字', 'error')
+    return
+  }
+  try {
+    await api.post(`/api/admin/feedbacks/${feedbackId}/reply`, { reply: replyContent.value })
+    authStore.toast('回复成功', 'success')
+    replyContent.value = ''
+    loadFeedbacks()
+  } catch (e) {
+    authStore.toast(e.message || '回复失败', 'error')
+  }
+}
+
 onMounted(() => {
   loadFeedbacks()
 })
+
 </script>
 
 <style scoped>
@@ -202,6 +235,40 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feedback-user {
+  font-size: 13px;
+  color: #667eea;
+  font-weight: 500;
+}
+
+.feedback-user i {
+  margin-right: 4px;
+}
+
+.feedback-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #ddd;
+}
+
+.reply-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+  resize: vertical;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.reply-input:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
 .feedback-time {
@@ -259,5 +326,10 @@ onMounted(() => {
   font-size: 14px;
   resize: vertical;
   box-sizing: border-box;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
 }
 </style>

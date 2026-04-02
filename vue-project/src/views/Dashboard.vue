@@ -103,6 +103,16 @@
       </div>
 
       <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(255, 193, 7, 0.1); color: #ffc107;">
+          <i class="fas fa-comment-dots"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ adminStats.pendingFeedbacks }}</div>
+          <div class="stat-label">待处理反馈</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
         <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
           <i class="fas fa-chart-line"></i>
         </div>
@@ -253,7 +263,7 @@ const activeOrders = ref([])
 const stats = ref({ demands: 0, quotes: 0, orders: 0 })
 
 // 管理员/审核员数据
-const adminStats = ref({ pendingUsers: 0, pendingDemands: 0, pendingDisputes: 0, totalUsers: 0 })
+const adminStats = ref({ pendingUsers: 0, pendingDemands: 0, pendingDisputes: 0, pendingFeedbacks: 0, totalUsers: 0 })
 const pendingUsers = ref([])
 const pendingDisputes = ref([])
 
@@ -375,10 +385,23 @@ async function loadAdminDashboard() {
     if (res.ok) {
       const data = await res.json()
       pendingDisputes.value = Array.isArray(data) ? data : (data.items || [])
-      adminStats.value.pendingDisputes = pendingDisputes.value.length
+      adminStats.value.pendingDisputes = data.total || pendingDisputes.value.length
     }
   } catch (e) {
     console.error('加载纠纷失败', e)
+  }
+
+  // 加载待处理反馈
+  try {
+    const res = await fetch(`${api.baseURL}/api/feedback?status=待处理`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      adminStats.value.pendingFeedbacks = data.total || 0
+    }
+  } catch (e) {
+    console.error('加载反馈失败', e)
   }
 
   // 加载总用户数

@@ -73,7 +73,12 @@ def upload_evidence(dispute_id: int, file: UploadFile = File(...),
 def list_disputes(status: Optional[str] = None,
                   page: int = 1, page_size: int = 12,
                   current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    q = db.query(Dispute).filter(Dispute.initiator_id == current_user.id)
+    # 审核员/管理员能看到所有纠纷，普通用户只能看自己发起的
+    is_admin_or_reviewer = current_user.is_admin == 1 or current_user.is_reviewer == 1
+    if is_admin_or_reviewer:
+        q = db.query(Dispute)
+    else:
+        q = db.query(Dispute).filter(Dispute.initiator_id == current_user.id)
     if status:
         q = q.filter(Dispute.status == status)
     q = q.order_by(Dispute.created_at.desc())
