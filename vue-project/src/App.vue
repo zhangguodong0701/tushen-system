@@ -35,6 +35,18 @@ function toastIcon(type) {
 </script>
 
 <style>
+/* 全局重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
 /* Toast 样式 */
 .toast-container {
   position: fixed;
