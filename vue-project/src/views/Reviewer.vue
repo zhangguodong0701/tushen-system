@@ -216,7 +216,7 @@ async function loadCounts() {
       api.get('/api/disputes?status=处理中').catch(() => []),
       api.get('/api/admin/feedbacks?status=待处理').catch(() => [])
     ])
-    tabs.value[0].count = Array.isArray(pendingUsers) ? pendingUsers.length : 0
+    tabs.value[0].count = pendingUsers.total || 0
     tabs.value[1].count = Array.isArray(pendingDisputes) ? pendingDisputes.length : (pendingDisputes.total || 0)
     tabs.value[2].count = pendingFeedbacks.total || 0
   } catch {}
@@ -228,7 +228,8 @@ async function loadData() {
     // 先刷新所有 badge 数量
     await loadCounts()
     if (activeTab.value === 'users') {
-      users.value = await api.get('/api/admin/users?status=待审核')
+      const data = await api.get('/api/admin/users?status=待审核')
+      users.value = data.items || data || []
     } else if (activeTab.value === 'disputes') {
       const data = await api.get('/api/disputes?status=处理中')
       disputes.value = data.items || data || []
