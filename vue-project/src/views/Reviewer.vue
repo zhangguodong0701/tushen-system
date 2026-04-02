@@ -17,10 +17,10 @@
     <div v-if="activeTab === 'users'" class="card">
       <!-- 筛选栏 -->
       <div class="filter-bar">
-        <select v-model="filters.userType" @change="loadData()" class="filter-select">
-          <option value="">全部类型</option>
-          <option value="甲方">甲方</option>
-          <option value="乙方">乙方</option>
+        <select v-model="filters.userStatus" @change="loadData()" class="filter-select">
+          <option value="待审核">待审核</option>
+          <option value="通过">已通过</option>
+          <option value="驳回">已驳回</option>
         </select>
         <span class="filter-hint">筛选最早提交的用户优先处理</span>
       </div>
@@ -348,9 +348,9 @@ const tabs = ref([
 
 // 筛选条件
 const filters = ref({
-  userType: '',       // 用户类型：甲方/乙方
-  disputeStatus: '',   // 纠纷状态：处理中/已解决
-  feedbackStatus: ''   // 反馈状态：待处理/已处理
+  userStatus: '待审核',  // 用户审核状态：待审核/通过/驳回
+  disputeStatus: '',      // 纠纷状态：处理中/已解决
+  feedbackStatus: ''    // 反馈状态：待处理/已处理
 })
 
 // 加载所有 tab 的数量（badge 显示用）
@@ -361,7 +361,7 @@ async function loadCounts() {
       api.get('/api/disputes?status=处理中').catch(() => []),
       api.get('/api/admin/feedbacks?status=待处理').catch(() => [])
     ])
-    tabs.value[0].count = pendingUsers.total || 0
+    tabs.value[0].count = pendingUsers.total || 0  // 待审核用户数
     tabs.value[1].count = Array.isArray(pendingDisputes) ? pendingDisputes.length : (pendingDisputes.total || 0)
     tabs.value[2].count = pendingFeedbacks.total || 0
   } catch {}
@@ -373,12 +373,8 @@ async function loadData() {
     // 先刷新所有 badge 数量
     await loadCounts()
     if (activeTab.value === 'users') {
-      // 用户审核：支持按类型筛选
-      let url = '/api/admin/users?status=待审核'
-      if (filters.value.userType) {
-        url += `&user_type=${filters.value.userType}`
-      }
-      const data = await api.get(url)
+      // 用户审核：支持按审核状态筛选
+      const data = await api.get(`/api/admin/users?status=${filters.value.userStatus}`)
       users.value = data.items || data || []
     } else if (activeTab.value === 'disputes') {
       // 纠纷处理：支持按状态筛选
