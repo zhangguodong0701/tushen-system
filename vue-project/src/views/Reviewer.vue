@@ -15,6 +15,15 @@
 
     <!-- 用户审核 -->
     <div v-if="activeTab === 'users'" class="card">
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
+        <select v-model="filters.userType" @change="loadData()" class="filter-select">
+          <option value="">全部类型</option>
+          <option value="甲方">甲方</option>
+          <option value="乙方">乙方</option>
+        </select>
+        <span class="filter-hint">筛选最早提交的用户优先处理</span>
+      </div>
       <div class="card-body">
         <div v-if="loading" class="loading">
           <i class="fas fa-spinner fa-spin"></i> 加载中...
@@ -63,6 +72,15 @@
 
     <!-- 纠纷处理 -->
     <div v-if="activeTab === 'disputes'" class="card">
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
+        <select v-model="filters.disputeStatus" @change="loadData()" class="filter-select">
+          <option value="">全部状态</option>
+          <option value="处理中">处理中</option>
+          <option value="已解决">已解决</option>
+        </select>
+        <span class="filter-hint">筛选最早提交的用户优先处理</span>
+      </div>
       <div class="card-body">
         <div v-if="loading" class="loading">
           <i class="fas fa-spinner fa-spin"></i> 加载中...
@@ -102,6 +120,15 @@
 
     <!-- 投诉反馈 -->
     <div v-if="activeTab === 'feedbacks'" class="card">
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
+        <select v-model="filters.feedbackStatus" @change="loadData()" class="filter-select">
+          <option value="">全部状态</option>
+          <option value="待处理">待处理</option>
+          <option value="已处理">已处理</option>
+        </select>
+        <span class="filter-hint">筛选最早提交的用户优先处理</span>
+      </div>
       <div class="card-body">
         <div v-if="loading" class="loading">
           <i class="fas fa-spinner fa-spin"></i> 加载中...
@@ -208,6 +235,13 @@ const tabs = ref([
   { key: 'feedbacks', label: '投诉反馈', count: 0 }
 ])
 
+// 筛选条件
+const filters = ref({
+  userType: '',       // 用户类型：甲方/乙方
+  disputeStatus: '',   // 纠纷状态：处理中/已解决
+  feedbackStatus: ''   // 反馈状态：待处理/已处理
+})
+
 // 加载所有 tab 的数量（badge 显示用）
 async function loadCounts() {
   try {
@@ -228,13 +262,28 @@ async function loadData() {
     // 先刷新所有 badge 数量
     await loadCounts()
     if (activeTab.value === 'users') {
-      const data = await api.get('/api/admin/users?status=待审核')
+      // 用户审核：支持按类型筛选
+      let url = '/api/admin/users?status=待审核'
+      if (filters.value.userType) {
+        url += `&user_type=${filters.value.userType}`
+      }
+      const data = await api.get(url)
       users.value = data.items || data || []
     } else if (activeTab.value === 'disputes') {
-      const data = await api.get('/api/disputes?status=处理中')
+      // 纠纷处理：支持按状态筛选
+      let url = '/api/disputes'
+      if (filters.value.disputeStatus) {
+        url += `?status=${filters.value.disputeStatus}`
+      }
+      const data = await api.get(url)
       disputes.value = data.items || data || []
     } else if (activeTab.value === 'feedbacks') {
-      const data = await api.get('/api/admin/feedbacks')
+      // 投诉反馈：支持按状态筛选
+      let url = '/api/admin/feedbacks'
+      if (filters.value.feedbackStatus) {
+        url += `?status=${filters.value.feedbackStatus}`
+      }
+      const data = await api.get(url)
       feedbacks.value = data.items || data || []
     }
   } catch (e) {
@@ -325,10 +374,41 @@ onMounted(() => {
 .tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   background: #f5f7fa;
   padding: 4px;
   border-radius: 10px;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.filter-hint {
+  font-size: 13px;
+  color: #999;
+  margin-left: auto;
 }
 
 .tab {
