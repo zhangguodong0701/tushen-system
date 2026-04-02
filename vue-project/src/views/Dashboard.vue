@@ -5,8 +5,8 @@
       <div class="welcome-text">
         <h1>你好，{{ authStore.user?.real_name || '用户' }}！</h1>
         <p>
-          <span class="role-tag" :class="authStore.user?.role === '甲方' ? 'buyer' : 'seller'">
-            {{ authStore.user?.role === '甲方' ? '甲方' : '乙方' }}
+          <span class="role-tag" :class="getRoleClass()">
+            {{ getRoleText() }}
           </span>
           {{ welcomeMessage }}
         </p>
@@ -15,14 +15,20 @@
         <button v-if="authStore.isBuyer" class="btn btn-gradient" @click="router.push('/demands/create')">
           <i class="fas fa-plus"></i> 发布需求
         </button>
+        <button v-if="authStore.isReviewer" class="btn btn-gradient" @click="router.push('/reviewer')">
+          <i class="fas fa-clipboard-check"></i> 审核中心
+        </button>
+        <button v-if="authStore.isAdmin" class="btn btn-gradient" @click="router.push('/admin')">
+          <i class="fas fa-cog"></i> 后台管理
+        </button>
         <button class="btn btn-secondary" @click="router.push('/demands')">
           <i class="fas fa-search"></i> 浏览需求
         </button>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-grid">
+    <!-- 普通用户统计卡片 -->
+    <div v-if="authStore.isBuyer || authStore.isSeller" class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon" style="background: rgba(102, 126, 234, 0.1); color: #667eea;">
           <i class="fas fa-list"></i>
@@ -64,8 +70,51 @@
       </div>
     </div>
 
-    <!-- 最近活动 -->
-    <div class="content-grid">
+    <!-- 审核员/管理员统计卡片 -->
+    <div v-else-if="authStore.isReviewer || authStore.isAdmin" class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(102, 126, 234, 0.1); color: #667eea;">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ adminStats.pendingUsers }}</div>
+          <div class="stat-label">待审核用户</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+          <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ adminStats.pendingDemands }}</div>
+          <div class="stat-label">待审核需求</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+          <i class="fas fa-gavel"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ adminStats.pendingDisputes }}</div>
+          <div class="stat-label">待处理纠纷</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ adminStats.totalUsers }}</div>
+          <div class="stat-label">总用户数</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 最近活动 - 普通用户 -->
+    <div v-if="authStore.isBuyer || authStore.isSeller" class="content-grid">
       <div class="card">
         <div class="card-header">
           <h3><i class="fas fa-clock"></i> 最近通知</h3>
@@ -125,6 +174,68 @@
         </div>
       </div>
     </div>
+
+    <!-- 待处理事项 - 审核员/管理员 -->
+    <div v-else-if="authStore.isReviewer || authStore.isAdmin" class="content-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3><i class="fas fa-user-clock"></i> 待审核用户</h3>
+          <router-link to="/reviewer" class="link">查看全部</router-link>
+        </div>
+        <div class="card-body">
+          <div v-if="pendingUsers.length === 0" class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            <p>暂无待审核用户</p>
+          </div>
+          <div v-else class="user-list">
+            <div
+              v-for="user in pendingUsers.slice(0, 5)"
+              :key="user.id"
+              class="user-item"
+              @click="router.push('/reviewer')"
+            >
+              <div class="user-avatar">
+                <i class="fas fa-user"></i>
+              </div>
+              <div class="user-info">
+                <div class="user-name">{{ user.real_name || '未实名' }}</div>
+                <div class="user-meta">{{ user.phone }} · {{ formatTime(user.created_at) }}</div>
+              </div>
+              <span class="badge badge-warning">待审核</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3><i class="fas fa-exclamation-circle"></i> 待处理纠纷</h3>
+          <router-link to="/disputes" class="link">查看全部</router-link>
+        </div>
+        <div class="card-body">
+          <div v-if="pendingDisputes.length === 0" class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            <p>暂无待处理纠纷</p>
+          </div>
+          <div v-else class="dispute-list">
+            <div
+              v-for="d in pendingDisputes.slice(0, 5)"
+              :key="d.id"
+              class="dispute-item"
+              @click="router.push('/disputes')"
+            >
+              <div class="dispute-info">
+                <div class="dispute-title">{{ d.title || `纠纷 #${d.id}` }}</div>
+                <div class="dispute-meta">
+                  <span class="badge badge-danger">处理中</span>
+                  <span class="dispute-amount">¥{{ formatAmount(d.amount) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -141,6 +252,11 @@ const notifications = ref([])
 const activeOrders = ref([])
 const stats = ref({ demands: 0, quotes: 0, orders: 0 })
 
+// 管理员/审核员数据
+const adminStats = ref({ pendingUsers: 0, pendingDemands: 0, pendingDisputes: 0, totalUsers: 0 })
+const pendingUsers = ref([])
+const pendingDisputes = ref([])
+
 const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
 
 const welcomeMessage = computed(() => {
@@ -149,6 +265,21 @@ const welcomeMessage = computed(() => {
   if (hour < 18) return '下午好，继续加油！'
   return '晚上好，注意休息！'
 })
+
+function getRoleText() {
+  if (authStore.isAdmin) return '管理员'
+  if (authStore.isReviewer) return '审核员'
+  if (authStore.user?.role === '甲方') return '甲方'
+  if (authStore.user?.role === '乙方') return '乙方'
+  return '用户'
+}
+
+function getRoleClass() {
+  if (authStore.isAdmin) return 'admin'
+  if (authStore.isReviewer) return 'reviewer'
+  if (authStore.user?.role === '甲方') return 'buyer'
+  return 'seller'
+}
 
 async function loadDashboard() {
   if (!authStore.token) return
@@ -203,6 +334,64 @@ async function loadDashboard() {
     }
   } catch (e) {
     console.error('加载报价失败', e)
+  }
+}
+
+async function loadAdminDashboard() {
+  if (!authStore.isReviewer && !authStore.isAdmin) return
+
+  // 加载待审核用户
+  try {
+    const res = await fetch(`${api.baseURL}/api/admin/users?status=pending&page=1&page_size=5`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      pendingUsers.value = data.items || []
+      adminStats.value.pendingUsers = data.total || pendingUsers.value.length
+    }
+  } catch (e) {
+    console.error('加载待审核用户失败', e)
+  }
+
+  // 加载待审核需求
+  try {
+    const res = await fetch(`${api.baseURL}/api/admin/demands?status=pending&page=1&page_size=5`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      adminStats.value.pendingDemands = data.total || 0
+    }
+  } catch (e) {
+    console.error('加载待审核需求失败', e)
+  }
+
+  // 加载待处理纠纷
+  try {
+    const res = await fetch(`${api.baseURL}/api/disputes?status=处理中`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      pendingDisputes.value = Array.isArray(data) ? data : (data.items || [])
+      adminStats.value.pendingDisputes = pendingDisputes.value.length
+    }
+  } catch (e) {
+    console.error('加载纠纷失败', e)
+  }
+
+  // 加载总用户数
+  try {
+    const res = await fetch(`${api.baseURL}/api/admin/users?page=1&page_size=1`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      adminStats.value.totalUsers = data.total || 0
+    }
+  } catch (e) {
+    console.error('加载用户总数失败', e)
   }
 }
 
@@ -266,6 +455,7 @@ function handleNotificationClick(n) {
 
 onMounted(() => {
   loadDashboard()
+  loadAdminDashboard()
 })
 </script>
 
@@ -307,13 +497,15 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.role-tag.buyer {
+.role-tag.buyer,
+.role-tag.seller {
   background: rgba(255, 255, 255, 0.2);
   color: white;
 }
 
-.role-tag.seller {
-  background: rgba(255, 255, 255, 0.2);
+.role-tag.admin,
+.role-tag.reviewer {
+  background: rgba(255, 255, 255, 0.3);
   color: white;
 }
 
@@ -476,7 +668,9 @@ onMounted(() => {
 }
 
 .notification-list,
-.order-list {
+.order-list,
+.user-list,
+.dispute-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -573,6 +767,98 @@ onMounted(() => {
 }
 
 .order-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+/* 用户列表样式 */
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #f0f0f0;
+}
+
+.user-item:hover {
+  background: #f8f9fa;
+  border-color: #e0e0e0;
+}
+
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.user-meta {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* 纠纷列表样式 */
+.dispute-item {
+  padding: 14px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #f0f0f0;
+}
+
+.dispute-item:hover {
+  background: #f8f9fa;
+  border-color: #e0e0e0;
+}
+
+.dispute-title {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.dispute-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dispute-amount {
   font-size: 15px;
   font-weight: 700;
   color: #ef4444;
