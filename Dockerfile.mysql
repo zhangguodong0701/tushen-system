@@ -11,7 +11,7 @@ ENV MYSQL_USER=tushen
 ENV MYSQL_PASSWORD=tushen_pass_2026
 
 # 初始化脚本目录
-COPY init.sql /docker-entrypoint-initdb.d/
+COPY mysql/init.sql /docker-entrypoint-initdb.d/
 
 # MySQL 配置
 RUN echo "[mysqld]" > /etc/mysql/conf.d/custom.cnf && \
