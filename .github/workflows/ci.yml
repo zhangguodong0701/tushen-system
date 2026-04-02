@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  # ========== 后端测试 ==========
+  backend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tushen-system/backend
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: tushen_test
+          MYSQL_USER: tushen
+          MYSQL_PASSWORD: tushen_pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run backend tests
+        run: |
+          cd tushen-system/backend
+          DATABASE_URL="mysql+pymysql://tushen:tushen_pass@127.0.0.1:3306/tushen_test?charset=utf8mb4" \
+          pytest tests/ -v --tb=short
+
+  # ========== 前端构建 ==========
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tushen-system/vue-project
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: tushen-system/vue-project/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('tushen-system/vue-project/package*.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd tushen-system/vue-project
+          npm ci
+
+      - name: Lint
+        run: |
+          cd tushen-system/vue-project
+          npm run lint --if-present || true
+
+      - name: Build
+        run: |
+          cd tushen-system/vue-project
+          npm run build
+        env:
+          VITE_API_BASE: http://localhost:8000
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: tushen-system/vue-project/dist
+
+  # ========== Docker 构建测试 ==========
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          cd tushen-system
+          docker build -f Dockerfile -t tushen-backend:latest .
+          docker build -f Dockerfile.frontend -t tushen-frontend:latest .

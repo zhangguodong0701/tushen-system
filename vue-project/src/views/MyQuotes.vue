@@ -6,8 +6,16 @@
 
     <div class="card">
       <div class="card-body">
-        <div v-if="loading" class="loading">
-          <i class="fas fa-spinner fa-spin"></i> 加载中...
+        <!-- 骨架屏 -->
+        <div v-if="loading" class="skeleton-list">
+          <table class="data-table">
+            <thead><tr><th v-for="i in 7" :key="i"><div class="skeleton-line" style="width:60px;height:14px;"></div></th></tr></thead>
+            <tbody>
+              <tr v-for="i in 5" :key="i">
+                <td v-for="j in 7" :key="j"><div class="skeleton-line" :style="`width:${60+Math.random()*30}px;height:14px;`"></div></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <div v-else-if="quotes.length === 0" class="empty-state">
           <i class="fas fa-file-invoice-dollar"></i>
@@ -65,6 +73,17 @@
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- 分页 -->
+    <div v-if="totalPages > 1" class="pagination">
+      <button :disabled="page <= 1" @click="changePage(page - 1)">
+        <i class="fas fa-chevron-left"></i> 上一页
+      </button>
+      <span class="page-info">第 {{ page }} / {{ totalPages }} 页，共 {{ total }} 条</span>
+      <button :disabled="page >= totalPages" @click="changePage(page + 1)">
+        下一页 <i class="fas fa-chevron-right"></i>
+      </button>
     </div>
 
     <!-- 报价详情弹窗 -->
@@ -131,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api'
@@ -141,6 +160,10 @@ const authStore = useAuthStore()
 
 const quotes = ref([])
 const loading = ref(false)
+const page = ref(1)
+const pageSize = 12
+const total = ref(0)
+const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
 const selectedQuote = ref(null)
 const editForm = ref({
   show: false,
@@ -150,10 +173,18 @@ const editForm = ref({
   submitting: false
 })
 
+function changePage(p) {
+  page.value = p
+  loadQuotes()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 async function loadQuotes() {
   loading.value = true
   try {
-    quotes.value = await api.get('/api/quotes/my')
+    const data = await api.get(`/api/quotes/my?page=${page.value}&page_size=${pageSize}`)
+    quotes.value = data.items || []
+    total.value = data.total || 0
   } catch (e) {
     authStore.toast('加载报价列表失败', 'error')
   } finally {
@@ -418,5 +449,49 @@ onMounted(() => {
 
 .btn-danger:hover {
   background: #dc2626;
+}
+
+/* 骨架屏 */
+.skeleton-line {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.page-info {
+  color: #666;
+  font-size: 14px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.pagination button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #f5f7fa;
 }
 </style>

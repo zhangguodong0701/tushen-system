@@ -30,9 +30,17 @@
       </div>
     </div>
 
-    <!-- 需求列表 -->
-    <div v-if="loading" class="loading">
-      <i class="fas fa-spinner fa-spin"></i> 加载中...
+    <!-- 骨架屏 -->
+    <div v-if="loading" class="skeleton-grid">
+      <div v-for="i in 6" :key="i" class="skeleton-card">
+        <div class="skeleton-line" style="width: 30%; height: 18px; margin-bottom: 12px;"></div>
+        <div class="skeleton-line" style="width: 80%; height: 20px; margin-bottom: 8px;"></div>
+        <div class="skeleton-line" style="width: 60%; height: 16px; margin-bottom: 16px;"></div>
+        <div style="display: flex; gap: 12px;">
+          <div class="skeleton-line" style="width: 80px; height: 14px;"></div>
+          <div class="skeleton-line" style="width: 80px; height: 14px;"></div>
+        </div>
+      </div>
     </div>
     <div v-else-if="demands.length === 0" class="empty-state">
       <i class="fas fa-inbox"></i>
@@ -71,19 +79,19 @@
 
     <!-- 分页 -->
     <div v-if="totalPages > 1" class="pagination">
-      <button :disabled="page <= 1" @click="page--; loadDemands()">
-        <i class="fas fa-chevron-left"></i>
+      <button :disabled="page <= 1" @click="changePage(page - 1)">
+        <i class="fas fa-chevron-left"></i> 上一页
       </button>
-      <span>{{ page }} / {{ totalPages }}</span>
-      <button :disabled="page >= totalPages" @click="page++; loadDemands()">
-        <i class="fas fa-chron-right"></i>
+      <span class="page-info">第 {{ page }} / {{ totalPages }} 页，共 {{ total }} 条</span>
+      <button :disabled="page >= totalPages" @click="changePage(page + 1)">
+        下一页 <i class="fas fa-chevron-right"></i>
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api'
@@ -95,7 +103,14 @@ const demands = ref([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = 12
-const totalPages = ref(1)
+const total = ref(0)
+const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
+
+function changePage(p) {
+  page.value = p
+  loadDemands()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 const filters = ref({
   status: '',
@@ -114,11 +129,8 @@ async function loadDemands() {
     params.append('page_size', pageSize)
 
     const data = await api.get(`/api/demands?${params.toString()}`)
-    // 后端返回 items，不是 demands
-    demands.value = data.items || data.demands || data
-    if (data.total) {
-      totalPages.value = Math.ceil(data.total / pageSize)
-    }
+    demands.value = data.items || []
+    total.value = data.total || 0
   } catch (e) {
     authStore.toast('加载需求列表失败', 'error')
   } finally {
@@ -339,5 +351,36 @@ onMounted(() => {
 .payment-tag.stage {
   background: #cce5ff;
   color: #004085;
+}
+
+/* 骨架屏 */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.skeleton-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.skeleton-line {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.page-info {
+  color: #666;
+  font-size: 14px;
 }
 </style>
