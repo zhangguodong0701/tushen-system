@@ -330,9 +330,11 @@ print(f"{'─'*60}")
 r = GET("/api/notifications", token=admin_token, expected=200, name="获取通知列表")
 if r.status_code == 200:
     notifs = r.json()
-    print(f"  [OK] 通知数量: {len(notifs)}")
-    if notifs:
-        nid = notifs[0]["id"]
+    # 可能是列表或分页格式 {"items": [...], "total": N}
+    items = notifs if isinstance(notifs, list) else notifs.get("items", [])
+    print(f"  [OK] 通知数量: {len(items)}")
+    if items:
+        nid = items[0]["id"]
         # 6.2 标记已读
         POST(f"/api/notifications/{nid}/read", token=admin_token, expected=200, name="标记通知已读")
         print(f"  [OK] 通知标记已读")
@@ -388,9 +390,11 @@ if r.status_code == 200:
 # 8.2 管理员列表用户
 r = GET("/api/admin/users", token=admin_token, expected=200, name="管理员-用户列表")
 if r.status_code == 200:
-    users = r.json()
-    print(f"  [OK] 用户总数: {len(users)}")
-    pending_users = [u for u in users if u["status"] == "待审核"]
+    resp = r.json()
+    users = resp if isinstance(resp, list) else resp.get("items", [])
+    total = resp if isinstance(resp, int) else resp.get("total", len(users))
+    print(f"  [OK] 用户总数: {total}")
+    pending_users = [u for u in users if u.get("status") == "待审核"]
     if pending_users:
         uid_to_approve = pending_users[0]["id"]
         uid_to_reject = pending_users[-1]["id"] if len(pending_users) > 1 else None
@@ -402,7 +406,7 @@ if r.status_code == 200:
 
         # 8.4 驳回用户（如果存在多个待审）
         if uid_to_reject:
-            r = POST(f"/api/admin/users/{uid_to_reject}/reject", token=admin_token, expected=200, name="驳回用户")
+            r = POST(f"/api/admin/users/{uid_to_reject}/reject", token=admin_token, json={"reason": "测试驳回"}, expected=200, name="驳回用户")
             if r.status_code == 200:
                 print(f"  [OK] 用户 {uid_to_reject} 审核驳回")
     else:
