@@ -8,4 +8,6 @@ aiofiles==23.2.1
 pydantic==2.6.4
 PyMySQL==1.1.1
 cryptography==42.0.5
+slowapi==0.1.9
+
 

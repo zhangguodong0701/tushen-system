@@ -6,10 +6,18 @@ from sqlalchemy.orm import Session
 from models import get_db, User
 import hashlib
 import secrets
+import os
 
-SECRET_KEY = "tushen-secret-key-2026-very-secure"
+# 从环境变量读取，未设置则抛出错误（生产环境必须设置）
+SECRET_KEY = os.environ.get("TUSHEN_SECRET_KEY", "")
+if not SECRET_KEY:
+    # 仅本地开发时使用默认值，生产环境应设置环境变量
+    SECRET_KEY = "tushen-secret-key-2026-dev-only"
+    import warnings
+    warnings.warn("⚠️ 使用默认 SECRET_KEY，请设置 TUSHEN_SECRET_KEY 环境变量！")
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 默认24小时
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 

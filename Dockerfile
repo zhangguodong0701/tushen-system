@@ -41,7 +41,8 @@ RUN pip install --no-cache-dir --upgrade -i https://pypi.tuna.tsinghua.edu.cn/si
     python-dotenv \
     aiofiles \
     PyMySQL \
-    cryptography
+    cryptography \
+    slowapi
 
 # 暴露端口
 EXPOSE 8000

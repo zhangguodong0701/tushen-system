@@ -1,3 +1,7 @@
+# 加载 .env 环境变量（必须在其他模块之前）
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -5,7 +9,41 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
-import os, shutil, uuid, json
+import os, shutil, uuid, json, re
+
+# 安全中间件
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """添加安全响应头"""
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # CSP（内容安全策略）
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob: https:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'"
+        )
+        return response
+
+# 速率限制
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    limiter = Limiter(key_func=get_remote_address)
+    SLOWAPI_ENABLED = True
+except ImportError:
+    limiter = None
+    SLOWAPI_ENABLED = False
 
 from models import (
     init_db, get_db, User, Demand, Quote, Order, Drawing, Notification, Dispute,
@@ -40,17 +78,112 @@ def extract_notification_type(title: str) -> str:
 
 app = FastAPI(title="图审系统API", version="1.0.0")
 
+# 安全头中间件
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS 配置（从环境变量读取，支持多域名逗号分隔）
+ALLOWED_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in ALLOWED_ORIGINS if o.strip()],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
 
 UPLOAD_DIR = "./uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# 注册速率限制器
+# 速率限制存储（内存，简单实现）
+# 生产环境建议使用 Redis 存储
+_rate_limit_store: dict = {}
+
+def _check_rate_limit(ip: str, endpoint: str, limit: int = 10, window: int = 60) -> bool:
+    """简单速率限制：每分钟最多 limit 次请求"""
+    key = f"{ip}:{endpoint}"
+    now = datetime.utcnow().timestamp()
+    if key not in _rate_limit_store:
+        _rate_limit_store[key] = []
+    # 清理过期记录
+    _rate_limit_store[key] = [t for t in _rate_limit_store[key] if now - t < window]
+    if len(_rate_limit_store[key]) >= limit:
+        return False
+    _rate_limit_store[key].append(now)
+    return True
+
+if SLOWAPI_ENABLED:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ========== 安全上传配置 ==========
+ALLOWED_EXTENSIONS = {".pdf", ".dwg", ".dxf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx", ".zip", ".rar"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE", 50)) * 1024 * 1024  # 默认 50MB
+
+# MIME 白名单
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+    "application/zip", "application/x-rar-compressed",
+    "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream",  # DWG/DXF 常用这个
+}
+
+def secure_save_file(file: UploadFile) -> str:
+    """安全保存文件：校验扩展名、大小、MIME类型"""
+    ext = os.path.splitext(file.filename)[1].lower()
+    
+    # 1. 校验扩展名
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"不支持的文件类型: {ext}")
+    
+    # 2. 校验文件大小
+    content = file.file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(400, f"文件大小超过限制（最大 {MAX_FILE_SIZE // 1024 // 1024}MB）")
+    if len(content) == 0:
+        raise HTTPException(400, "文件不能为空")
+    
+    # 3. 校验 MIME 类型（读取文件头部 magic number）
+    mime_type = _detect_mime(content[:512])
+    if mime_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(400, f"文件实际类型不允许: {mime_type}")
+    
+    # 4. UUID 重命名防止路径穿越
+    fname = f"{uuid.uuid4().hex}{ext}"
+    fpath = os.path.join(UPLOAD_DIR, fname)
+    with open(fpath, "wb") as f:
+        f.write(content)
+    return f"/uploads/{fname}"
+
+def _detect_mime(header_bytes: bytes) -> str:
+    """通过文件头部 magic number 检测真实 MIME 类型"""
+    if header_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
+        return "image/png"
+    if header_bytes.startswith(b'\xff\xd8\xff'):
+        return "image/jpeg"
+    if header_bytes.startswith(b'GIF87a') or header_bytes.startswith(b'GIF89a'):
+        return "image/gif"
+    if header_bytes.startswith(b'RIFF') and header_bytes[8:12] == b'WEBP':
+        return "image/webp"
+    if header_bytes.startswith(b'%PDF'):
+        return "application/pdf"
+    if header_bytes.startswith(b'PK\x03\x04'):
+        return "application/zip"
+    if header_bytes.startswith(b'Rar!\x1a\x07'):
+        return "application/x-rar-compressed"
+    if header_bytes[:8] == b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1':
+        return "application/vnd.ms-excel"
+    # 默认返回 octet-stream
+    return "application/octet-stream"
+
+def save_file(file: UploadFile) -> str:
+    """兼容旧接口"""
+    return secure_save_file(file)
 
 @app.on_event("startup")
 def startup():
@@ -221,7 +354,11 @@ def _fund_record(db, order_id, user_id, ftype, amount, direction, description):
 
 # ========== Auth API ==========
 @app.post("/api/auth/register")
-def register(data: UserRegister, db: Session = Depends(get_db)):
+def register(request: Request, data: UserRegister, db: Session = Depends(get_db)):
+    # 速率限制：注册接口每分钟最多3次
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(client_ip, "register", limit=3, window=60):
+        raise HTTPException(status_code=429, detail="注册过于频繁，请稍后再试")
     if data.phone:
         if db.query(User).filter(User.phone == data.phone).first():
             raise HTTPException(400, "手机号已注册")
@@ -241,7 +378,11 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
     return {"message": "注册成功，等待审核", "user_id": user.id}
 
 @app.post("/api/auth/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # 速率限制：登录接口每分钟最多5次
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(client_ip, "login", limit=5, window=60):
+        raise HTTPException(status_code=429, detail="登录过于频繁，请稍后再试")
     user = db.query(User).filter(
         (User.phone == form_data.username) | (User.email == form_data.username)
     ).first()
