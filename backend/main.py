@@ -67,10 +67,12 @@ app = FastAPI(title="图审系统API", version="1.0.0")
 app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS 配置
-ALLOWED_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",")
+# 开发环境支持所有来源，生产环境请设置 CORS_ORIGINS 环境变量
+_cors_env = os.environ.get("CORS_ORIGINS", "")
+ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in ALLOWED_ORIGINS if o.strip()],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
