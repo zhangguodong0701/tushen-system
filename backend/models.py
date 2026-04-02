@@ -2,9 +2,28 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from datetime import datetime
 import enum
+import os
 
-DATABASE_URL = "sqlite:///./tushen.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# 优先读取环境变量，回退到 SQLite（本地开发）
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "sqlite:///./tushen.db"
+)
+
+if DATABASE_URL.startswith("mysql"):
+    # MySQL 连接池配置
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,       # 自动检测连接是否断开
+        pool_recycle=3600,        # 1小时回收连接，避免 MySQL 超时断开
+        pool_size=10,
+        max_overflow=20,
+        echo=False
+    )
+else:
+    # SQLite 本地开发
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

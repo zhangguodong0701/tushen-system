@@ -18,6 +18,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制后端代码
@@ -37,7 +39,9 @@ RUN pip install --no-cache-dir --upgrade -i https://pypi.tuna.tsinghua.edu.cn/si
     python-jose \
     pydantic \
     python-dotenv \
-    aiofiles
+    aiofiles \
+    PyMySQL \
+    cryptography
 
 # 暴露端口
 EXPOSE 8000
