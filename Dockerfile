@@ -1,10 +1,10 @@
 # ============================================
 # 图审云平台 - 后端 Dockerfile
 # ============================================
-# 基于 Python 3.10 精简镜像（国内镜像源）
+# 基于阿里云私有镜像
 # ============================================
 
-FROM python:3.10-slim
+FROM crpi-2kfrt1x6xp9hpy86.cn-beijing.personal.cr.aliyuncs.com/zgd1/alex:python-3.10-slim
 
 # 设置工作目录
 WORKDIR /app

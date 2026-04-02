@@ -5,7 +5,7 @@
 # ============================================
 
 # 第一阶段：构建
-FROM node:18-alpine AS builder
+FROM crpi-2kfrt1x6xp9hpy86.cn-beijing.personal.cr.aliyuncs.com/zgd1/alex:node-18-alpine AS builder
 
 WORKDIR /app
 
