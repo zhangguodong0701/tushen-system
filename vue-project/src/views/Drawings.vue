@@ -58,6 +58,9 @@
                   <button class="btn btn-sm btn-outline" @click="downloadDrawing(d)" title="下载">
                     <i class="fas fa-download"></i>
                   </button>
+                  <button class="btn btn-sm btn-info" @click="viewVersions(d)" title="版本历史">
+                    <i class="fas fa-history"></i>
+                  </button>
                   <button v-if="d.comments" class="btn btn-sm btn-link" @click="viewComments(d)" title="查看意见">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -114,9 +117,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 const drawings = ref([])
@@ -161,6 +166,10 @@ function toggleProject(orderId) {
 
 function downloadDrawing(d) {
   window.open(`http://127.0.0.1:8001${d.file_url}`, '_blank')
+}
+
+function viewVersions(d) {
+  router.push(`/drawings/${d.id}/versions`)
 }
 
 function viewComments(d) {
@@ -358,6 +367,16 @@ onMounted(() => {
 
 .btn-link:hover {
   color: #5a6fd6;
+}
+
+.btn-info {
+  color: #667eea;
+  background: #e8eaff;
+  border: 1px solid #d0d0f0;
+}
+
+.btn-info:hover {
+  background: #d8d8f8;
 }
 
 /* 模态框 */

@@ -143,9 +143,11 @@ class Drawing(Base):
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"))
     uploader_id = Column(Integer, ForeignKey("users.id"))
-    filename = Column(String(200))
+    filename = Column(String(200))         # 原始文件名（如"建筑平面图.dwg"）
     file_url = Column(String(300))
     version = Column(String(20), default="V1")
+    version_num = Column(Integer, default=1)   # 版本序号，用于排序
+    group_id = Column(Integer, nullable=True)   # 版本组ID，同一图纸的多个版本共享此ID
     comments = Column(Text, default="")
     comment_images = Column(Text, default="")  # JSON array of image URLs
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -75,3 +75,34 @@ class PhaseCreate(BaseModel):
 
 class FeedbackCreate(BaseModel):
     content: str
+
+
+class DrawingGroupResponse(BaseModel):
+    id: int
+    group_id: int
+    filename: str
+    file_url: str
+    version: str
+    version_num: int
+    version_count: int
+    comments: Optional[str] = ""
+    uploader_name: str
+    created_at: str
+
+
+class DrawingVersionItem(BaseModel):
+    id: int
+    version: str
+    version_num: int
+    file_url: str
+    comments: Optional[str] = ""
+    comment_images: Optional[str] = ""
+    uploader_name: str
+    created_at: str
+
+
+class DrawingVersionsResponse(BaseModel):
+    filename: str
+    order_title: str
+    group_id: int
+    versions: list[DrawingVersionItem]
