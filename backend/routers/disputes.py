@@ -86,14 +86,19 @@ def list_disputes(status: Optional[str] = None,
     items = []
     for d in result["items"]:
         order_title = None
+        initiator_name = None
         if d.order_id:
             order = db.query(Order).filter(Order.id == d.order_id).first()
             if order and order.demand:
                 order_title = order.demand.title
+        initiator = db.query(User).filter(User.id == d.initiator_id).first()
+        if initiator:
+            initiator_name = initiator.real_name or initiator.phone
         items.append({
             "id": d.id, "order_id": d.order_id,
             "order_title": order_title or f"订单 #{d.order_id}",
             "dispute_type": "服务纠纷",
+            "initiator_name": initiator_name or "未知",
             "description": d.description,
             "evidence_url": d.evidence_url,
             "evidence_files": d.evidence_files,

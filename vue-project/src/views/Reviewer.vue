@@ -211,14 +211,14 @@ const tabs = ref([
 // 加载所有 tab 的数量（badge 显示用）
 async function loadCounts() {
   try {
-    const [pendingUsers, pendingDisputes, allFeedbacks] = await Promise.all([
+    const [pendingUsers, pendingDisputes, pendingFeedbacks] = await Promise.all([
       api.get('/api/admin/users?status=待审核').catch(() => []),
-      api.get('/api/disputes?status=待处理').catch(() => []),
-      api.get('/api/admin/feedbacks').catch(() => [])
+      api.get('/api/disputes?status=处理中').catch(() => []),
+      api.get('/api/admin/feedbacks?status=待处理').catch(() => [])
     ])
-    tabs.value[0].count = pendingUsers.length
-    tabs.value[1].count = pendingDisputes.length
-    tabs.value[2].count = allFeedbacks.filter(f => !f.reply).length
+    tabs.value[0].count = Array.isArray(pendingUsers) ? pendingUsers.length : 0
+    tabs.value[1].count = Array.isArray(pendingDisputes) ? pendingDisputes.length : (pendingDisputes.total || 0)
+    tabs.value[2].count = pendingFeedbacks.total || 0
   } catch {}
 }
 
@@ -230,9 +230,11 @@ async function loadData() {
     if (activeTab.value === 'users') {
       users.value = await api.get('/api/admin/users?status=待审核')
     } else if (activeTab.value === 'disputes') {
-      disputes.value = await api.get('/api/disputes?status=待处理')
+      const data = await api.get('/api/disputes?status=处理中')
+      disputes.value = data.items || data || []
     } else if (activeTab.value === 'feedbacks') {
-      feedbacks.value = await api.get('/api/admin/feedbacks')
+      const data = await api.get('/api/admin/feedbacks')
+      feedbacks.value = data.items || data || []
     }
   } catch (e) {
     authStore.toast('加载数据失败', 'error')
