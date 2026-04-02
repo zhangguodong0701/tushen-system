@@ -211,6 +211,114 @@
         </div>
       </div>
     </div>
+
+    <!-- 纠纷处理弹窗 -->
+    <div v-if="selectedDispute" class="modal-overlay" @click.self="selectedDispute = null">
+      <div class="modal dispute-modal">
+        <div class="modal-header">
+          <h3>处理纠纷 #{{ selectedDispute.id }}</h3>
+          <button class="btn-close" @click="selectedDispute = null">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- 基本信息 -->
+          <div class="info-section">
+            <h4>纠纷信息</h4>
+            <div class="info-row">
+              <label>关联订单：</label>
+              <span>{{ selectedDispute.order_title || `订单 #${selectedDispute.order_id}` }}</span>
+            </div>
+            <div class="info-row">
+              <label>纠纷类型：</label>
+              <span>{{ selectedDispute.dispute_type }}</span>
+            </div>
+            <div class="info-row">
+              <label>发起人：</label>
+              <span>{{ selectedDispute.initiator_name }}</span>
+            </div>
+            <div class="info-row">
+              <label>发起时间：</label>
+              <span>{{ formatTime(selectedDispute.created_at) }}</span>
+            </div>
+            <div class="info-row">
+              <label>当前状态：</label>
+              <span :class="['status-badge', selectedDispute.status === '处理中' ? 'status-pending' : 'status-resolved']">
+                {{ selectedDispute.status }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 纠纷描述 -->
+          <div class="info-section">
+            <h4>纠纷描述</h4>
+            <div class="description-box">{{ selectedDispute.description }}</div>
+          </div>
+
+          <!-- 证据材料 -->
+          <div v-if="(selectedDispute.evidence_url || selectedDispute.evidence_files)" class="info-section">
+            <h4>证据材料</h4>
+            <div class="evidence-gallery">
+              <div v-if="selectedDispute.evidence_url" class="evidence-item">
+                <img :src="getFileUrl(selectedDispute.evidence_url)" alt="证据" />
+              </div>
+              <div v-if="selectedDispute.evidence_files" v-for="(url, idx) in JSON.parse(selectedDispute.evidence_files)" :key="idx" class="evidence-item">
+                <img :src="getFileUrl(url)" alt="证据" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 处理结果（如果已处理） -->
+          <div v-if="selectedDispute.resolution" class="info-section">
+            <h4>处理结果</h4>
+            <div class="resolution-box">
+              <div class="info-row">
+                <label>处理方式：</label>
+                <span>{{ selectedDispute.resolution.type === 'refund' ? '退款给甲方' : '放款给乙方' }}</span>
+              </div>
+              <div class="info-row">
+                <label>处理时间：</label>
+                <span>{{ formatTime(selectedDispute.resolved_at) }}</span>
+              </div>
+              <div v-if="selectedDispute.resolution.note" class="info-row">
+                <label>处理备注：</label>
+                <span>{{ selectedDispute.resolution.note }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 处理表单（如果未处理） -->
+          <div v-if="selectedDispute.status === '处理中'" class="info-section">
+            <h4>处理操作</h4>
+            <div class="action-form">
+              <div class="action-buttons">
+                <button
+                  class="btn btn-danger"
+                  :disabled="processing"
+                  @click="resolveDispute('refund')"
+                >
+                  <i class="fas fa-undo"></i> 退款给甲方
+                </button>
+                <button
+                  class="btn btn-success"
+                  :disabled="processing"
+                  @click="resolveDispute('release')"
+                >
+                  <i class="fas fa-check"></i> 放款给乙方
+                </button>
+              </div>
+              <div class="action-note">
+                <textarea
+                  v-model="disputeNote"
+                  placeholder="输入处理备注（可选）..."
+                  rows="3"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -227,6 +335,9 @@ const users = ref([])
 const disputes = ref([])
 const feedbacks = ref([])
 const selectedUser = ref(null)
+const selectedDispute = ref(null)  // 当前处理的纠纷
+const disputeNote = ref('')       // 纠纷处理备注
+const processing = ref(false)     // 处理中状态
 const replyContent = ref({})  // { [feedbackId]: string }
 
 const tabs = ref([
@@ -319,9 +430,29 @@ function viewUserDetail(user) {
   selectedUser.value = user
 }
 
-function handleDispute(d) {
-  // TODO: 打开纠纷处理弹窗
-  authStore.toast('纠纷处理功能开发中', 'info')
+async function handleDispute(d) {
+  // 打开纠纷处理弹窗
+  selectedDispute.value = d
+  disputeNote.value = ''
+}
+
+async function resolveDispute(action) {
+  if (!selectedDispute.value) return
+  processing.value = true
+  try {
+    // 后端使用 Form 格式，需要用 FormData
+    const formData = new FormData()
+    formData.append('action', action)
+    formData.append('result', disputeNote.value || (action === 'refund' ? '管理员裁决退款' : '管理员裁决放款'))
+    await api.postForm(`/api/admin/disputes/${selectedDispute.value.id}/resolve`, formData)
+    authStore.toast('处理成功', 'success')
+    selectedDispute.value = null
+    loadData()
+  } catch (e) {
+    authStore.toast(e.message || '处理失败', 'error')
+  } finally {
+    processing.value = false
+  }
 }
 
 async function submitReply(f) {
@@ -632,5 +763,119 @@ onMounted(() => {
   display: block;
   margin-top: 4px;
   color: #999;
+}
+
+/* 纠纷处理弹窗样式 */
+.dispute-modal {
+  max-width: 700px;
+}
+
+.info-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.info-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.info-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: #333;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-pending {
+  background: #fef3cd;
+  color: #856404;
+}
+
+.status-resolved {
+  background: #d4edda;
+  color: #155724;
+}
+
+.description-box {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.evidence-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.evidence-item {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.evidence-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.evidence-item img:hover {
+  transform: scale(1.05);
+}
+
+.resolution-box {
+  padding: 12px;
+  background: #d4edda;
+  border-radius: 8px;
+}
+
+.action-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.action-buttons .btn {
+  flex: 1;
+  padding: 12px 20px;
+  font-size: 15px;
+}
+
+.action-note textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.action-note textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 </style>
