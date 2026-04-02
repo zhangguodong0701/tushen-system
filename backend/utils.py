@@ -15,9 +15,17 @@ def paginate_query(q, page: int, page_size: int):
 
 # ========== 序列化函数 ==========
 def user_to_dict(u):
+    # 根据 user_type 判断角色（兼容甲乙方）
+    if u.user_type in JIA_FANG_TYPES:
+        role = "甲方"
+    elif u.user_type in YI_FANG_TYPES:
+        role = "乙方"
+    else:
+        role = u.user_type or ""
     return {
         "id": u.id, "phone": u.phone, "email": u.email,
         "real_name": u.real_name, "user_type": u.user_type,
+        "role": role,  # 添加 role 字段
         "status": u.status, "is_admin": u.is_admin,
         "is_reviewer": u.is_reviewer,
         "company_name": u.company_name, "license_url": u.license_url,
