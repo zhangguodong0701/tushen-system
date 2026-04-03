@@ -368,7 +368,7 @@ async function loadCounts() {
     const [pendingUsers, pendingDisputes, pendingFeedbacks] = await Promise.all([
       api.get('/api/admin/users?status=待审核').catch(() => []),
       api.get('/api/disputes?status=处理中').catch(() => []),
-      api.get('/api/admin/feedbacks?status=待处理').catch(() => [])
+      api.get('/api/feedback?status=待处理').catch(() => [])
     ])
     tabs.value[0].count = pendingUsers.total || 0  // 待审核用户数
     tabs.value[1].count = Array.isArray(pendingDisputes) ? pendingDisputes.length : (pendingDisputes.total || 0)
@@ -395,7 +395,7 @@ async function loadData() {
       disputes.value = data.items || data || []
     } else if (activeTab.value === 'feedbacks') {
       // 投诉反馈：支持按状态筛选
-      let url = '/api/admin/feedbacks'
+      let url = '/api/feedback'
       if (filters.value.feedbackStatus) {
         url += `?status=${filters.value.feedbackStatus}`
       }
@@ -467,7 +467,7 @@ async function submitReply(f) {
     return
   }
   try {
-    await api.post(`/api/admin/feedbacks/${f.id}/reply`, { reply: content })
+    await api.post(`/api/feedback/${f.id}/reply`, { reply: content })
     authStore.toast('回复成功', 'success')
     delete replyContent.value[f.id]
     loadData()
