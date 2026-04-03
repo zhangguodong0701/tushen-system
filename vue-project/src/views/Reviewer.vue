@@ -121,8 +121,6 @@
                   <button v-else class="btn btn-sm btn-outline" @click="handleDispute(d)">查看</button>
                 </div>
               </td>
-                </button>
-              </td>
             </tr>
           </tbody>
         </table>
