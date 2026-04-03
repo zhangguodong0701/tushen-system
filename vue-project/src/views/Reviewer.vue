@@ -54,21 +54,17 @@
               <td>{{ u.auth_type || '-' }}</td>
               <td>{{ formatTime(u.created_at) }}</td>
               <td>
-                <!-- 仅待审核状态才显示通过/驳回按钮 -->
-                <template v-if="u.status === '待审核'">
-                  <button class="btn btn-sm btn-success" @click="handleApprove(u)">
-                    通过
-                  </button>
-                  <button class="btn btn-sm btn-danger" @click="handleReject(u)">
-                    驳回
-                  </button>
-                </template>
-                <!-- 已通过/已驳回显示状态标签 -->
-                <span v-else-if="u.status === '通过'" class="status-tag status-approved">✓ 已通过</span>
-                <span v-else-if="u.status === '驳回'" class="status-tag status-rejected">✗ 已驳回</span>
-                <button class="btn btn-sm btn-outline" @click="viewUserDetail(u)">
-                  详情
-                </button>
+                <div class="action-cell">
+                  <!-- 仅待审核状态才显示通过/驳回按钮 -->
+                  <template v-if="u.status === '待审核'">
+                    <button class="btn btn-sm btn-success" @click="handleApprove(u)">通过</button>
+                    <button class="btn btn-sm btn-danger" @click="handleReject(u)">驳回</button>
+                  </template>
+                  <!-- 已通过/已驳回显示状态标签 -->
+                  <span v-else-if="u.status === '通过'" class="status-tag status-approved">✓ 已通过</span>
+                  <span v-else-if="u.status === '驳回'" class="status-tag status-rejected">✗ 已驳回</span>
+                  <button class="btn btn-sm btn-outline" @click="viewUserDetail(u)">详情</button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -120,12 +116,10 @@
                 </span>
               </td>
               <td>
-                <button v-if="d.status === '处理中'" class="btn btn-sm btn-primary" @click="handleDispute(d)">
-                  处理
-                </button>
-                <button v-else class="btn btn-sm btn-outline" @click="handleDispute(d)">
-                  查看
-                </button>
+                <div class="action-cell">
+                  <button v-if="d.status === '处理中'" class="btn btn-sm btn-primary" @click="handleDispute(d)">处理</button>
+                  <button v-else class="btn btn-sm btn-outline" @click="handleDispute(d)">查看</button>
+                </div>
               </td>
                 </button>
               </td>
@@ -885,6 +879,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.action-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .action-buttons {
