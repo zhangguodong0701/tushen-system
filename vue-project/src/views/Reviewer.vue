@@ -886,6 +886,10 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.action-cell .btn {
+  width: auto !important;
+}
+
 .action-buttons {
   display: flex;
   gap: 12px;
