@@ -103,6 +103,7 @@
               <th>类型</th>
               <th>发起人</th>
               <th>时间</th>
+              <th>状态</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -114,8 +115,18 @@
               <td>{{ d.initiator_name }}</td>
               <td>{{ formatTime(d.created_at) }}</td>
               <td>
-                <button class="btn btn-sm btn-primary" @click="handleDispute(d)">
+                <span :class="['status-tag', d.status === '处理中' ? 'status-pending' : 'status-approved']">
+                  {{ d.status === '处理中' ? '⏳ 处理中' : '✓ 已解决' }}
+                </span>
+              </td>
+              <td>
+                <button v-if="d.status === '处理中'" class="btn btn-sm btn-primary" @click="handleDispute(d)">
                   处理
+                </button>
+                <button v-else class="btn btn-sm btn-outline" @click="handleDispute(d)">
+                  查看
+                </button>
+              </td>
                 </button>
               </td>
             </tr>
@@ -556,6 +567,11 @@ onMounted(() => {
 .status-approved {
   background: #d4edda;
   color: #155724;
+}
+
+.status-pending {
+  background: #fff3cd;
+  color: #856404;
 }
 
 .status-rejected {
