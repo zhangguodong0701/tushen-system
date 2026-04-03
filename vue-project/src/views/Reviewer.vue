@@ -54,12 +54,18 @@
               <td>{{ u.auth_type || '-' }}</td>
               <td>{{ formatTime(u.created_at) }}</td>
               <td>
-                <button class="btn btn-sm btn-success" @click="handleApprove(u)">
-                  通过
-                </button>
-                <button class="btn btn-sm btn-danger" @click="handleReject(u)">
-                  驳回
-                </button>
+                <!-- 仅待审核状态才显示通过/驳回按钮 -->
+                <template v-if="u.status === '待审核'">
+                  <button class="btn btn-sm btn-success" @click="handleApprove(u)">
+                    通过
+                  </button>
+                  <button class="btn btn-sm btn-danger" @click="handleReject(u)">
+                    驳回
+                  </button>
+                </template>
+                <!-- 已通过/已驳回显示状态标签 -->
+                <span v-else-if="u.status === '通过'" class="status-tag status-approved">✓ 已通过</span>
+                <span v-else-if="u.status === '驳回'" class="status-tag status-rejected">✗ 已驳回</span>
                 <button class="btn btn-sm btn-outline" @click="viewUserDetail(u)">
                   详情
                 </button>
@@ -536,6 +542,25 @@ onMounted(() => {
   font-size: 13px;
   color: #999;
   margin-left: auto;
+}
+
+.status-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 6px;
+}
+
+.status-approved {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-rejected {
+  background: #f8d7da;
+  color: #721c24;
 }
 
 .tab {
