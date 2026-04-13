@@ -248,15 +248,20 @@ async function loadData() {
   loading.value = true
   try {
     if (activeTab.value === 'users') {
-      users.value = await api.get('/api/admin/users')
+      const res = await api.get('/api/admin/users')
+      users.value = res.items || res || []
     } else if (activeTab.value === 'demands') {
-      demands.value = await api.get('/api/admin/demands')
+      const res = await api.get('/api/admin/demands')
+      demands.value = res.items || res || []
     } else if (activeTab.value === 'orders') {
-      orders.value = await api.get('/api/admin/orders')
+      const res = await api.get('/api/admin/orders')
+      orders.value = res.items || res || []
     } else if (activeTab.value === 'funds') {
-      funds.value = await api.get('/api/admin/fund-records')
+      const res = await api.get('/api/admin/fund-records')
+      funds.value = res.items || res || []
     } else if (activeTab.value === 'blacklist') {
-      blacklist.value = await api.get('/api/admin/blacklist')
+      const res = await api.get('/api/admin/blacklist')
+      blacklist.value = res.items || res || []
     }
   } catch (e) {
     authStore.toast('加载数据失败', 'error')

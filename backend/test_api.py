@@ -6,6 +6,7 @@
 - 测试结束后清理产生的脏数据
 - 统一输出格式，解析器不出错
 """
+import json
 import requests
 import sys
 import io
@@ -414,8 +415,8 @@ if not _did:
              name="[Quotes]发布测试需求")
 
 if _did:
-    # 3.1 提交报价
-    r = POST(f"/api/demands/{_did}/quotes", token=admin_tok, json={
+    # 3.1 提交报价（使用 seller_tok，不是 admin_tok）
+    r = POST(f"/api/demands/{_did}/quotes", token=seller_tok, json={
         "price": 25000, "remark": "含详细审核报告"
     }, expected=200, name="提交报价")
     if r.status_code == 200:
@@ -424,7 +425,7 @@ if _did:
 
     # 3.2 重复报价 → 应失败
     if ids["quote"]:
-        POST(f"/api/demands/{_did}/quotes", token=admin_tok,
+        POST(f"/api/demands/{_did}/quotes", token=seller_tok,
              json={"price": 26000}, expected=400, name="重复报价-应失败")
 
     # 3.3 查看该需求的所有报价（返回list）
@@ -465,55 +466,189 @@ print(f"  [4/9] Orders 订单模块")
 print(f"{'─'*65}")
 
 _odid = ids.get("demand") or _did
-_quote_tok = admin_tok
 
-# 4.1 列出订单
-r = GET("/api/orders", token=admin_tok, expected=200, name="列出订单")
+# 4.1 列出订单（buyer 视角）
+r = GET("/api/orders", token=buyer_tok, expected=200, name="列出订单")
 if r.status_code == 200:
     print(f"  [INFO] 订单数量: {len(r.json().get('items', r.json()))}")
 
-# 4.2 创建完整流程（独立数据，不依赖外部 ids["order"]）
+# 4.2 创建完整流程（buyer 选 seller 报价）
 if _odid:
-    # 再提一个报价，确保可创建订单
-    r_q = POST(f"/api/demands/{_odid}/quotes", token=_quote_tok, json={
+    # seller 提报价
+    r_q = POST(f"/api/demands/{_odid}/quotes", token=seller_tok, json={
         "price": 35000
-    }, expected=200, name="[Orders]提报价")
+    }, expected=200, name="[Orders]seller提报价")
     qid = r_q.json()["id"] if r_q.status_code == 200 else None
 
     if qid:
-        r = POST("/api/orders", token=admin_tok, json={
-            "demand_id": _odid, "seller_id": admin_tok,  # 字段名是 seller_id 但实际传 token...
-            "amount": 35000, "payment_type": "一次性"
-        }, expected=200, name="创建订单")
+        # buyer 选标（自动创建订单）
+        r = POST(f"/api/demands/{_odid}/select-winner/{qid}",
+                 token=buyer_tok, expected=200, name="buyer选标创建订单")
         if r.status_code == 200:
-            ids["order"] = r.json().get("id")
+            ids["order"] = r.json().get("order_id")
             print(f"  [INFO] 订单 ID={ids['order']}")
         elif r.status_code == 422:
-            print(f"  [INFO] 创建订单参数校验失败: {r.text[:100]}")
+            print(f"  [INFO] 选标失败: {r.text[:100]}")
 
-    # 4.3 获取订单详情
+    # 4.3 获取订单详情（buyer 视角）
     if ids.get("order"):
-        r = GET(f"/api/orders/{ids['order']}", token=admin_tok, expected=200,
+        r = GET(f"/api/orders/{ids['order']}", token=buyer_tok, expected=200,
                 name="获取订单详情")
         if r.status_code == 200:
             print(f"  [INFO] 订单状态: {r.json().get('status')}")
 
-    # 4.4 支付订单（能支付就支付）
+    # 4.4 支付订单（buyer 支付）
     if ids.get("order"):
-        r = POST(f"/api/orders/{ids['order']}/pay", token=admin_tok, expected=200,
+        r = POST(f"/api/orders/{ids['order']}/pay", token=buyer_tok, expected=200,
                  name="支付订单")
         if r.status_code == 200:
             print(f"  [INFO] 支付成功")
 
-    # 4.5 验收订单
+    # 4.5 验收订单（buyer 验收）
     if ids.get("order"):
-        r = POST(f"/api/orders/{ids['order']}/accept", token=admin_tok, expected=200,
+        r = POST(f"/api/orders/{ids['order']}/accept", token=buyer_tok, expected=200,
                  name="验收订单")
         if r.status_code == 200:
             print(f"  [INFO] 验收成功")
 
 # 4.6 无效 token
 GET("/api/orders", token="bad", expected=401, name="订单列表-无效token")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# [4.5/9] Orders-Phases 分阶段订单（独立测试分阶段付款）
+# ══════════════════════════════════════════════════════════════════════
+print(f"\n{'─'*65}")
+print(f"  [4.5/9] Orders-Phases 分阶段订单")
+print(f"{'─'*65}")
+
+_phases_order_id = None
+
+# 4.5.1 甲方创建分阶段需求
+r_ph_d = POST("/api/demands", token=buyer_tok, json={
+    "title": "分阶段测试需求",
+    "description": "测试分阶段付款流程",
+    "budget": 60000,
+    "payment_type": "分阶段",
+    "payment_phases": json.dumps([
+        {"name": "初稿交付", "ratio": 30},
+        {"name": "二稿交付", "ratio": 30},
+        {"name": "终稿交付", "ratio": 40}
+    ]),
+    "profession": "结构设计"
+}, expected=200, name="创建分阶段需求")
+if r_ph_d.status_code == 200:
+    _ph_did = r_ph_d.json()["id"]
+    print(f"  [INFO] 分阶段需求 ID={_ph_did}")
+
+    # 4.5.2 甲方发布需求
+    POST(f"/api/demands/{_ph_did}/publish", token=buyer_tok, expected=200,
+         name="发布分阶段需求")
+
+    # 4.5.3 乙方报价
+    r_ph_q = POST(f"/api/demands/{_ph_did}/quotes", token=seller_tok,
+                  json={"price": 60000}, expected=200,
+                  name="分阶段需求-乙方报价")
+    if r_ph_q.status_code == 200:
+        _ph_qid = r_ph_q.json()["id"]
+
+        # 4.5.4 甲方选标（自动创建阶段）
+        r_ph_sel = POST(f"/api/demands/{_ph_did}/select-winner/{_ph_qid}",
+                        token=buyer_tok, expected=200,
+                        name="甲方选标-分阶段")
+        if r_ph_sel.status_code == 200:
+            _phases_order_id = r_ph_sel.json().get("order_id")
+            print(f"  [INFO] 分阶段订单 ID={_phases_order_id}")
+
+            # 4.5.5 查询阶段列表
+            r_phases = GET(f"/api/orders/{_phases_order_id}/phases",
+                          token=buyer_tok, expected=200,
+                          name="查询订单阶段列表")
+            if r_phases.status_code == 200:
+                phases_data = r_phases.json()
+                phases_items = phases_data if isinstance(phases_data, list) else phases_data.get('items', [])
+                print(f"  [INFO] 阶段数量: {len(phases_items)}")
+                for p in phases_items:
+                    print(f"       - {p.get('name')}: {p.get('ratio')}% / {p.get('amount')}元")
+
+# 4.5.6 分阶段支付验收（如果订单存在）
+# 逻辑：甲方一次性支付全款 → 乙方按阶段交付 → 甲方逐步验收 → 平台按比例放款
+if _phases_order_id and phases_items:
+    # 4.5.6.1 甲方一次性支付全款（分阶段也是一次性托管）
+    r_pay = POST(f"/api/orders/{_phases_order_id}/pay",
+                 token=buyer_tok, expected=200, name="分阶段订单-一次性托管全款")
+    if r_pay.status_code == 200:
+        print(f"  [INFO] 全款托管成功: 60000元")
+        
+        # 阶段1: 乙方上传初稿 → 甲方验收 → 放款30%
+        phase1_id = phases_items[0].get("id")
+        fake_drawing1 = ("初稿.dwg", io.BytesIO(b"draft 1 content"), "application/acad")
+        r_up1 = POST_FILE(f"/api/orders/{_phases_order_id}/drawings",
+                         files={"file": fake_drawing1},
+                         data={"description": "初稿图纸"},
+                         token=seller_tok, expected=200,
+                         name="阶段1上传图纸")
+        if r_up1.status_code == 200 and phase1_id:
+            print(f"  [INFO] 阶段1图纸上传成功")
+            r_c1 = POST(f"/api/phases/{phase1_id}/complete",
+                       token=buyer_tok, expected=200, name="验收阶段1-初稿")
+            if r_c1.status_code == 200:
+                print(f"  [INFO] 阶段1验收成功 → 18000元")
+        
+        # 阶段2: 乙方上传二稿 → 甲方验收 → 放款30%
+        if len(phases_items) > 1:
+            phase2_id = phases_items[1].get("id")
+            fake_drawing2 = ("二稿.dwg", io.BytesIO(b"draft 2 content"), "application/acad")
+            r_up2 = POST_FILE(f"/api/orders/{_phases_order_id}/drawings",
+                             files={"file": fake_drawing2},
+                             data={"description": "二稿图纸"},
+                             token=seller_tok, expected=200,
+                             name="阶段2上传图纸")
+            if r_up2.status_code == 200 and phase2_id:
+                print(f"  [INFO] 阶段2图纸上传成功")
+                r_c2 = POST(f"/api/phases/{phase2_id}/complete",
+                           token=buyer_tok, expected=200, name="验收阶段2-二稿")
+                if r_c2.status_code == 200:
+                    print(f"  [INFO] 阶段2验收成功 → 18000元")
+        
+        # 阶段3: 乙方上传终稿 → 甲方最终验收 → 订单完成 → 放款40%
+        if len(phases_items) > 2:
+            phase3_id = phases_items[2].get("id")
+            fake_drawing3 = ("终稿.dwg", io.BytesIO(b"final content"), "application/acad")
+            r_up3 = POST_FILE(f"/api/orders/{_phases_order_id}/drawings",
+                             files={"file": fake_drawing3},
+                             data={"description": "终稿图纸"},
+                             token=seller_tok, expected=200,
+                             name="阶段3上传图纸")
+            if r_up3.status_code == 200 and phase3_id:
+                print(f"  [INFO] 阶段3图纸上传成功")
+                r_c3 = POST(f"/api/phases/{phase3_id}/complete",
+                           token=buyer_tok, expected=200, name="验收阶段3-终稿")
+                if r_c3.status_code == 200:
+                    print(f"  [INFO] 阶段3验收成功 → 24000元")
+            
+            # 最终验收订单（所有阶段完成后）
+            r_acc = POST(f"/api/orders/{_phases_order_id}/accept",
+                        token=buyer_tok, expected=200, name="最终验收订单")
+            if r_acc.status_code == 200:
+                print(f"  [OK]  分阶段订单全部完成！60%托管 → 100%放款")
+
+        # 甲方验收阶段3（最终验收）
+        r_acc3 = POST(f"/api/orders/{_phases_order_id}/phases/3/accept",
+                      token=buyer_tok, expected=200, name="验收阶段3-完成")
+        if r_acc3.status_code == 200:
+            print(f"  [INFO] 阶段3验收成功，分阶段订单完成！")
+
+    # 4.5.7 验证订单最终状态
+    r_final = GET(f"/api/orders/{_phases_order_id}", token=buyer_tok,
+                  expected=200, name="验证订单最终状态")
+    if r_final.status_code == 200:
+        final_status = r_final.json().get("status")
+        print(f"  [INFO] 订单最终状态: {final_status}")
+        if final_status == "已完成":
+            print(f"  [OK]  分阶段付款全流程测试通过！")
+else:
+    print(f"  [WARN] 无法创建分阶段订单，跳过测试")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -527,49 +662,53 @@ _dwg_order_id = ids.get("order")
 
 # 若无订单，模块内自建一个
 if not _dwg_order_id:
-    r_d = POST("/api/demands", token=admin_tok, json={
+    # buyer 创建需求
+    r_d = POST("/api/demands", token=buyer_tok, json={
         "title": "图纸测试需求", "description": "独立图纸测试",
         "budget": 20000, "payment_type": "一次性", "profession": "结构设计"
-    }, expected=200, name="[Drawings]创建测试需求")
+    }, expected=200, name="[Drawings]buyer创建测试需求")
     if r_d.status_code == 200:
         _dwg_did = r_d.json()["id"]
-        POST(f"/api/demands/{_dwg_did}/publish", token=admin_tok, expected=200,
-             name="[Drawings]发布测试需求")
-        r_q2 = POST(f"/api/demands/{_dwg_did}/quotes", token=admin_tok,
+        POST(f"/api/demands/{_dwg_did}/publish", token=buyer_tok, expected=200,
+             name="[Drawings]buyer发布测试需求")
+        # seller 提报价
+        r_q2 = POST(f"/api/demands/{_dwg_did}/quotes", token=seller_tok,
                     json={"price": 20000}, expected=200,
-                    name="[Drawings]提交报价")
+                    name="[Drawings]seller提交报价")
         if r_q2.status_code == 200:
             qid2 = r_q2.json()["id"]
-            r_o2 = POST("/api/orders", token=admin_tok, json={
-                "demand_id": _dwg_did, "seller_id": admin_tok,
-                "amount": 20000, "payment_type": "一次性"
-            }, expected=200, name="[Drawings]创建测试订单")
+            # buyer 选标（自动创建订单）
+            r_o2 = POST(f"/api/demands/{_dwg_did}/select-winner/{qid2}",
+                        token=buyer_tok, expected=200,
+                        name="[Drawings]buyer选标创建订单")
             if r_o2.status_code == 200:
-                _dwg_order_id = r_o2.json().get("id")
+                _dwg_order_id = r_o2.json().get("order_id")
 
 if _dwg_order_id:
-    # 5.1 上传图纸
+    # 5.1 上传图纸（seller 乙方上传）
     fake_dwg = ("结构图.dwg", io.BytesIO(b"fake dwg content"),
                 "application/octet-stream")
     r = POST_FILE(f"/api/orders/{_dwg_order_id}/drawings",
-                  files={"file": fake_dwg}, token=admin_tok,
-                  data={"version": "V1"}, expected=200, name="上传图纸")
+                  files={"file": fake_dwg}, token=seller_tok,
+                  data={"version": "V1"}, expected=200, name="seller上传图纸")
     if r.status_code == 200:
         ids["drawing"] = r.json().get("id")
         print(f"  [INFO] 图纸 ID={ids['drawing']}")
 
-    # 5.2 查看图纸列表
-    r = GET(f"/api/orders/{_dwg_order_id}/drawings", expected=200,
-            name="查看图纸列表")
+    # 5.2 查看图纸列表（buyer 甲方查看）
+    r = GET(f"/api/orders/{_dwg_order_id}/drawings", token=buyer_tok, expected=200,
+            name="buyer查看图纸列表")
     if r.status_code == 200:
-        print(f"  [INFO] 图纸数量: {len(r.json().get('items', r.json()))}")
+        data = r.json()
+        items = data if isinstance(data, list) else data.get('items', [])
+        print(f"  [INFO] 图纸数量: {len(items)}")
 
-    # 5.3 添加审图意见
+    # 5.3 添加审图意见（buyer 甲方添加）
     if ids.get("drawing"):
         PUT(f"/api/drawings/{ids['drawing']}/comments",
-            token=admin_tok,
+            token=buyer_tok,
             data={"comments": "结构符合规范，建议通过"},
-            expected=200, name="添加审图意见")
+            expected=200, name="buyer添加审图意见")
 
     # 5.4 无效 token 上传图纸
     fake2 = ("test.dwg", io.BytesIO(b"test"), "application/octet-stream")
@@ -630,17 +769,26 @@ if not _disp_order_id:
                     name="[Disputes]乙方提交报价")
         if r_q3.status_code == 200:
             qid3 = r_q3.json()["id"]
-            # 7.0.3 甲方选标创建订单（seller_id 用 seller_uid，不是 token！）
-            r_o3 = POST("/api/orders", token=buyer_tok, json={
-                "demand_id": _d3id, "quote_id": qid3,
-                "amount": 10000, "payment_type": "一次性"
-            }, expected=200, name="[Disputes]甲方选标创建订单")
+            # 7.0.3 甲方选标（自动创建订单）
+            r_o3 = POST(f"/api/demands/{_d3id}/select-winner/{qid3}",
+                       token=buyer_tok, expected=200, 
+                       name="[Disputes]甲方选标创建订单")
             if r_o3.status_code == 200:
-                _disp_order_id = r_o3.json().get("id")
+                _disp_order_id = r_o3.json().get("order_id")
                 print(f"  [INFO] 独立创建的订单 ID={_disp_order_id}")
 
 # 无论来源，都执行纠纷测试
 if _disp_order_id:
+    # 7.0 先完成支付和图纸上传，使订单进入「进行中」状态
+    _pay = POST(f"/api/orders/{_disp_order_id}/pay", token=buyer_tok, expected=200,
+                name="[Disputes]甲方支付")
+    # 7.0.1 乙方上传图纸
+    if _pay.status_code == 200:
+        fake_dwg = ("图纸.pdf", io.BytesIO(b"design content"), "application/pdf")
+        POST_FILE(f"/api/orders/{_disp_order_id}/drawings",
+                  files={"file": fake_dwg}, token=seller_tok, expected=200,
+                  name="[Disputes]乙方上传图纸")
+
     # 7.1 创建纠纷（订单「进行中」，应成功）
     r = POST("/api/disputes", token=buyer_tok, json={
         "order_id": _disp_order_id,
@@ -649,6 +797,9 @@ if _disp_order_id:
     if r.status_code == 200:
         ids["dispute"] = r.json().get("id")
         print(f"  [INFO] 纠纷 ID={ids['dispute']}")
+    elif r.status_code == 400:
+        print(f"  [FAIL] 创建纠纷失败: {r.json()}")
+        print(f"  [INFO] 订单状态可能不正确，跳过纠纷后续测试")
 
     # 7.2 上传证据
     if ids.get("dispute"):
@@ -662,7 +813,9 @@ if _disp_order_id:
     # 7.3 查看我的纠纷（甲方视角）
     r = GET("/api/disputes", token=buyer_tok, expected=200, name="甲方获取纠纷列表")
     if r.status_code == 200:
-        print(f"  [INFO] 甲方纠纷数量: {len(r.json().get('items', r.json()))}")
+        data = r.json()
+        items = data if isinstance(data, list) else data.get('items', [])
+        print(f"  [INFO] 甲方纠纷数量: {len(items)}")
 
     # 7.4 查看我的纠纷（乙方视角）
     GET("/api/disputes", token=seller_tok, expected=200, name="乙方获取纠纷列表")
@@ -671,12 +824,10 @@ if _disp_order_id:
     GET("/api/disputes", token="bad", expected=401, name="纠纷列表-无效token")
 
     # 7.6 验收后再创建纠纷 → 应返回 400（业务正确性）
-    _o4pay = POST(f"/api/orders/{_disp_order_id}/pay", token=buyer_tok, expected=200,
-                  name="[Disputes]甲方支付订单")
     _o4acc = POST(f"/api/orders/{_disp_order_id}/accept", token=buyer_tok, expected=200,
                   name="[Disputes]甲方验收订单")
     # 验收后再次创建纠纷 → 必须 400
-    if _o4pay.status_code == 200 and _o4acc.status_code == 200:
+    if _o4acc.status_code == 200:
         r_400 = POST("/api/disputes", token=buyer_tok, json={
             "order_id": _disp_order_id,
             "description": "验收后再次发起纠纷"
