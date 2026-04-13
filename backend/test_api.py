@@ -12,6 +12,7 @@ import io
 import time
 import re
 from datetime import datetime
+from typing import Optional, List
 
 # ──────────── 配置 ────────────
 BASE = "http://localhost:8000"
@@ -24,7 +25,7 @@ ACCOUNTS = {
 }
 
 # ──────────── 工具函数 ────────────
-def get_token(phone: str, password: str) -> str | None:
+def get_token(phone: str, password: str) -> Optional[str]:
     r = requests.post(BASE + "/api/auth/login",
                       data={"username": phone, "password": password}, timeout=10)
     if r.status_code == 200:
