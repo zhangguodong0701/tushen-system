@@ -19,17 +19,27 @@ BASE = "http://localhost:8000"
 
 # 三类账号：管理员 / 甲方用户 / 乙方用户
 ACCOUNTS = {
-    "admin":  {"phone": "13800000000", "password": "admin123"},
-    "buyer":  {"phone": "13800001111", "password": "buyer123456"},   # 业主，甲方
-    "seller": {"phone": "13900001111", "password": "seller123456"},  # 设计师，乙方
+    "admin":  {"phone": "13800000000", "password": "admin123"},       # is_admin=1, user_type=设计院(乙方)
+    "buyer":  {"phone": "13830581253", "password": "owner123456"},    # owner，甲方，可发布需求
+    "seller": {"phone": "13883430767", "password": "designer123456"}, # designer，乙方
 }
 
 # ──────────── 工具函数 ────────────
-def get_token(phone: str, password: str) -> Optional[str]:
-    r = requests.post(BASE + "/api/auth/login",
-                      data={"username": phone, "password": password}, timeout=10)
-    if r.status_code == 200:
-        return r.json()["access_token"]
+def get_token(phone: str, password: str, retries: int = 3, wait: int = 2) -> Optional[str]:
+    """登录获取token，支持重试（处理限流429）"""
+    for attempt in range(retries):
+        r = requests.post(BASE + "/api/auth/login",
+                          data={"username": phone, "password": password}, timeout=10)
+        if r.status_code == 200:
+            return r.json()["access_token"]
+        if r.status_code == 429:
+            # 限流，等待后重试
+            print(f"  [WARN] 登录限流，等待 {wait}s...")
+            time.sleep(wait)
+            continue
+        # 其他错误
+        print(f"  [WARN] 登录失败({r.status_code}): {r.text[:80]}")
+        break
     return None
 
 
@@ -85,6 +95,26 @@ def GET(path, token=None, params=None, expected=200, name=None):
     r = requests.get(BASE + path, timeout=10, headers=h, params=params)
     n = name or f"GET {path}"
     results.append(Result(n, "GET", path, expected, r.status_code, r.text[:100]))
+    return r
+
+
+def _req(method, path, token=None, json=None, data=None, expected=200, name=None, retry=2):
+    h = {"Authorization": f"Bearer {token}"} if token else {}
+    url = BASE + path
+    for attempt in range(retry + 1):
+        if method == "GET":
+            r = requests.get(url, timeout=10, headers=h, params=params if method == "GET" else None)
+        elif method == "POST":
+            r = requests.post(url, timeout=10, headers=h, json=json, data=data)
+        elif method == "PUT":
+            r = requests.put(url, timeout=10, headers=h, json=json, data=data)
+        elif method == "DELETE":
+            r = requests.delete(url, timeout=10, headers=h)
+        if r.status_code != 429 or attempt >= retry:
+            break
+        time.sleep(2)
+    n = name or f"{method} {path}"
+    results.append(Result(n, method, path, expected, r.status_code, r.text[:100]))
     return r
 
 
@@ -147,8 +177,55 @@ if not tok.get("admin"):
     sys.exit(1)
 
 admin_tok = tok["admin"]
-buyer_uid = tok.get("buyer_uid")
-seller_uid = tok.get("seller_uid")
+
+# ── Setup: 注册并批准一个甲方用户（用于 Demands/Quotes/Orders 测试）──
+buyer_tok = None
+ts = int(time.time())
+buyer_phone = f"139{ts % 100000000:08d}"
+r = POST("/api/auth/register", json={
+    "phone": buyer_phone, "real_name": "甲方测试用户",
+    "user_type": "业主", "password": "BuyerTest123",
+    "company_name": "甲方测试公司"
+}, expected=200, name="[Setup]注册甲方用户")
+if r.status_code == 200:
+    buyer_uid = r.json().get("user_id")
+    # 管理员批准
+    r2 = POST(f"/api/admin/users/{buyer_uid}/approve",
+              token=admin_tok, expected=200, name="[Setup]批准甲方用户")
+    if r2.status_code == 200:
+        # 登录获取 buyer token
+        r3 = POST("/api/auth/login", data={"username": buyer_phone, "password": "BuyerTest123"},
+                  expected=200, name="[Setup]甲方用户登录")
+        if r3.status_code == 200:
+            buyer_tok = r3.json()["access_token"]
+            print(f"  [INFO] Buyer token acquired: {buyer_tok[:20]}... (UID={buyer_uid})")
+        time.sleep(1)
+if not buyer_tok:
+    buyer_tok = admin_tok   # 降级用 admin
+    print(f"  [WARN] Buyer login failed, falling back to admin token")
+
+# ── 注册并批准一个乙方用户（用于 Quotes 测试）──
+seller_tok = None
+ts2 = int(time.time()) + 1
+seller_phone = f"138{ts2 % 100000000:08d}"
+r = POST("/api/auth/register", json={
+    "phone": seller_phone, "real_name": "乙方测试用户",
+    "user_type": "设计师", "password": "SellerTest123",
+    "company_name": "乙方测试公司"
+}, expected=200, name="[Setup]注册乙方用户")
+if r.status_code == 200:
+    seller_uid = r.json().get("user_id")
+    r2 = POST(f"/api/admin/users/{seller_uid}/approve",
+              token=admin_tok, expected=200, name="[Setup]批准乙方用户")
+    if r2.status_code == 200:
+        r3 = POST("/api/auth/login", data={"username": seller_phone, "password": "SellerTest123"},
+                  expected=200, name="[Setup]乙方用户登录")
+        if r3.status_code == 200:
+            seller_tok = r3.json()["access_token"]
+            time.sleep(1)
+if not seller_tok:
+    seller_tok = admin_tok
+    print(f"  [WARN] Seller login failed, falling back to admin token")
 
 # ── 公共测试数据容器 ──
 ids = {"demand": None, "quote": None, "order": None, "drawing": None,
@@ -165,11 +242,13 @@ print(f"{'─'*65}")
 
 POST("/api/auth/login", data={"username": "13800000000", "password": "admin123"},
      expected=200, name="登录-正确账号")
+time.sleep(1.5)   # 避免触发 rate limit
 POST("/api/auth/login", data={"username": "13800000000", "password": "wrongpass"},
      expected=400, name="登录-错误密码")
 
 ts = int(time.time())
-new_phone = f"139{ts % 100000:05d}"
+# 生成11位手机号：139 + 8位时间戳（确保第2位在3-9范围内）
+new_phone = f"139{ts % 100000000:08d}"
 ids["new_user_phone"] = new_phone
 r = POST("/api/auth/register", json={
     "phone": new_phone, "real_name": "反脆弱测试用户",
@@ -203,67 +282,65 @@ print(f"\n{'─'*65}")
 print(f"  [2/9] Demands 需求模块")
 print(f"{'─'*65}")
 
-buyer_tok = tok.get("buyer")
-if buyer_tok:
-    # 2.1 创建需求
-    r = POST("/api/demands", token=buyer_tok, json={
-        "title": "反脆弱测试需求",
-        "description": "用于自动化测试的建筑结构图审",
-        "budget": 50000, "payment_type": "一次性",
-        "profession": "结构设计"
-    }, expected=200, name="创建需求")
-    if r.status_code == 200:
-        ids["demand"] = r.json()["id"]
-        print(f"  [INFO] 需求 ID={ids['demand']}")
+buyer_tok = buyer_tok  # 已在 Setup 中赋值
 
-    # 2.2 上传需求文件
-    if ids["demand"]:
-        fake_file = ("test.pdf", io.BytesIO(b"fake pdf content"), "application/pdf")
-        POST_FILE(f"/api/demands/{ids['demand']}/upload-file",
-                  files={"file": fake_file}, token=buyer_tok,
-                  expected=200, name="上传需求文件")
+# 2.1 创建需求
+r = POST("/api/demands", token=buyer_tok, json={
+    "title": "反脆弱测试需求",
+    "description": "用于自动化测试的建筑结构图审",
+    "budget": 50000, "payment_type": "一次性",
+    "profession": "结构设计"
+}, expected=200, name="创建需求")
+if r.status_code == 200:
+    ids["demand"] = r.json()["id"]
+    print(f"  [INFO] 需求 ID={ids['demand']}")
 
-    # 2.3 发布需求
-    if ids["demand"]:
-        POST(f"/api/demands/{ids['demand']}/publish",
-            token=buyer_tok, expected=200, name="发布需求")
+# 2.2 上传需求文件
+if ids["demand"]:
+    fake_file = ("test.pdf", io.BytesIO(b"fake pdf content"), "application/pdf")
+    POST_FILE(f"/api/demands/{ids['demand']}/upload-file",
+              files={"file": fake_file}, token=buyer_tok,
+              expected=200, name="上传需求文件")
 
-    # 2.4 获取需求列表（公开）
-    r = GET("/api/demands", params={"status": "已发布"}, expected=200,
-            name="获取需求列表(公开)")
-    if r.status_code == 200:
-        print(f"  [INFO] 已发布需求数: {r.json().get('total', '?')}")
+# 2.3 发布需求
+if ids["demand"]:
+    POST(f"/api/demands/{ids['demand']}/publish",
+        token=buyer_tok, expected=200, name="发布需求")
 
-    # 2.5 获取需求详情（公开）
-    if ids["demand"]:
-        GET(f"/api/demands/{ids['demand']}", expected=200, name="获取需求详情")
+# 2.4 获取需求列表（公开）
+r = GET("/api/demands", params={"status": "已发布"}, expected=200,
+        name="获取需求列表(公开)")
+if r.status_code == 200:
+    print(f"  [INFO] 已发布需求数: {r.json().get('total', '?')}")
 
-    # 2.6 我的需求
-    r = GET("/api/demands/my", token=buyer_tok, expected=200, name="获取我的需求")
-    if r.status_code == 200:
-        print(f"  [INFO] 我的需求数: {len(r.json().get('items', r.json()))}")
+# 2.5 获取需求详情（公开）
+if ids["demand"]:
+    GET(f"/api/demands/{ids['demand']}", expected=200, name="获取需求详情")
 
-    # 2.7 更新需求
-    if ids["demand"]:
-        PUT(f"/api/demands/{ids['demand']}", token=buyer_tok,
-            json={"title": "反脆弱测试需求_已修改", "budget": 55000},
-            expected=200, name="更新需求")
+# 2.6 我的需求
+r = GET("/api/demands/my", token=buyer_tok, expected=200, name="获取我的需求")
+if r.status_code == 200:
+    print(f"  [INFO] 我的需求数: {len(r.json().get('items', r.json()))}")
 
-    # 2.8 创建草稿 + 删除草稿
-    r = POST("/api/demands", token=buyer_tok, json={
-        "title": "草稿需求_反脆弱", "description": "即将被删除", "budget": 1000
-    }, expected=200, name="创建草稿需求")
-    if r.status_code == 200:
-        ids["draft_demand"] = r.json()["id"]
-        DELETE(f"/api/demands/{ids['draft_demand']}", token=buyer_tok,
-               expected=200, name="删除草稿需求")
+# 2.7 更新需求
+if ids["demand"]:
+    PUT(f"/api/demands/{ids['demand']}", token=buyer_tok,
+        json={"title": "反脆弱测试需求_已修改", "budget": 55000},
+        expected=200, name="更新需求")
 
-    # 2.9 删除已发布需求 → 应失败
-    if ids["demand"]:
-        DELETE(f"/api/demands/{ids['demand']}", token=buyer_tok,
-               expected=400, name="删除已发布需求-应失败")
-else:
-    print("  [SKIP] buyer 账号未登录，跳过 Demands 模块")
+# 2.8 创建草稿 + 删除草稿
+r = POST("/api/demands", token=buyer_tok, json={
+    "title": "草稿需求_反脆弱", "description": "即将被删除", "budget": 1000
+}, expected=200, name="创建草稿需求")
+if r.status_code == 200:
+    ids["draft_demand"] = r.json()["id"]
+    DELETE(f"/api/demands/{ids['draft_demand']}", token=buyer_tok,
+           expected=200, name="删除草稿需求")
+
+# 2.9 删除已发布需求 → 应失败
+if ids["demand"]:
+    DELETE(f"/api/demands/{ids['demand']}", token=buyer_tok,
+           expected=400, name="删除已发布需求-应失败")
 
 # 2.10 无效 token 访问公开接口
 GET("/api/demands", token="bad.token", expected=200,
@@ -277,8 +354,8 @@ print(f"\n{'─'*65}")
 print(f"  [3/9] Quotes 报价模块")
 print(f"{'─'*65}")
 
-# 若 buyer 不可用，用 admin 替做
-quote_tok = buyer_tok or admin_tok
+# 使用 seller_tok（已在 Setup 中创建并批准）
+quote_tok = seller_tok
 
 # 先确保有一个已发布的需求（模块内自备，不依赖外部）
 _did = ids.get("demand")
@@ -306,11 +383,13 @@ if _did:
         POST(f"/api/demands/{_did}/quotes", token=admin_tok,
              json={"price": 26000}, expected=400, name="重复报价-应失败")
 
-    # 3.3 查看该需求的所有报价
+    # 3.3 查看该需求的所有报价（返回list）
     r = GET(f"/api/demands/{_did}/quotes", expected=200,
             name="查看需求报价列表")
     if r.status_code == 200:
-        print(f"  [INFO] 报价数量: {len(r.json().get('items', r.json()))}")
+        data = r.json()
+        items = data if isinstance(data, list) else data.get('items', [])
+        print(f"  [INFO] 报价数量: {len(items)}")
 
     # 3.4 我的报价
     r = GET("/api/quotes/my", token=admin_tok, expected=200, name="获取我的报价")
@@ -481,7 +560,7 @@ GET("/api/notifications", token="bad", expected=401, name="通知列表-无效to
 
 
 # ══════════════════════════════════════════════════════════════════════
-# [7/9] Disputes（独立数据：只对「进行中/待验收」订单创建纠纷）
+# [7/9] Disputes（甲乙方独立流程）
 # ══════════════════════════════════════════════════════════════════════
 print(f"\n{'─'*65}")
 print(f"  [7/9] Disputes 纠纷模块")
@@ -489,31 +568,37 @@ print(f"{'─'*65}")
 
 _disp_order_id = ids.get("order")
 
-# 若无进行中订单，模块内自建
+# 若无进行中订单，模块内自建（甲乙方正确流程）
 if not _disp_order_id:
-    r_d3 = POST("/api/demands", token=admin_tok, json={
+    # 7.0 甲方创建需求
+    r_d3 = POST("/api/demands", token=buyer_tok, json={
         "title": "纠纷测试需求", "description": "用于测试纠纷",
         "budget": 10000, "payment_type": "一次性", "profession": "结构设计"
-    }, expected=200, name="[Disputes]创建测试需求")
+    }, expected=200, name="[Disputes]甲方创建需求")
     if r_d3.status_code == 200:
         _d3id = r_d3.json()["id"]
-        POST(f"/api/demands/{_d3id}/publish", token=admin_tok, expected=200,
-             name="[Disputes]发布测试需求")
-        r_q3 = POST(f"/api/demands/{_d3id}/quotes", token=admin_tok,
+        # 7.0.1 甲方发布需求
+        POST(f"/api/demands/{_d3id}/publish", token=buyer_tok, expected=200,
+             name="[Disputes]甲方发布需求")
+        # 7.0.2 乙方提交报价
+        r_q3 = POST(f"/api/demands/{_d3id}/quotes", token=seller_tok,
                     json={"price": 10000}, expected=200,
-                    name="[Disputes]提交报价")
+                    name="[Disputes]乙方提交报价")
         if r_q3.status_code == 200:
             qid3 = r_q3.json()["id"]
-            r_o3 = POST("/api/orders", token=admin_tok, json={
-                "demand_id": _d3id, "seller_id": admin_tok,
+            # 7.0.3 甲方选标创建订单（seller_id 用 seller_uid，不是 token！）
+            r_o3 = POST("/api/orders", token=buyer_tok, json={
+                "demand_id": _d3id, "quote_id": qid3,
                 "amount": 10000, "payment_type": "一次性"
-            }, expected=200, name="[Disputes]创建测试订单")
+            }, expected=200, name="[Disputes]甲方选标创建订单")
             if r_o3.status_code == 200:
                 _disp_order_id = r_o3.json().get("id")
+                print(f"  [INFO] 独立创建的订单 ID={_disp_order_id}")
 
+# 无论来源，都执行纠纷测试
 if _disp_order_id:
     # 7.1 创建纠纷（订单「进行中」，应成功）
-    r = POST("/api/disputes", token=admin_tok, json={
+    r = POST("/api/disputes", token=buyer_tok, json={
         "order_id": _disp_order_id,
         "description": "图纸审核存在争议，要求重新审核"
     }, expected=200, name="创建纠纷")
@@ -525,36 +610,37 @@ if _disp_order_id:
     if ids.get("dispute"):
         fake_ev = ("证据.pdf", io.BytesIO(b"evidence content"), "application/pdf")
         r = POST_FILE(f"/api/disputes/{ids['dispute']}/upload-evidence",
-                      files={"file": fake_ev}, token=admin_tok,
+                      files={"file": fake_ev}, token=buyer_tok,
                       expected=200, name="上传纠纷证据")
         if r.status_code == 200:
             print(f"  [INFO] 证据上传成功: {r.json().get('url')}")
 
-    # 7.3 查看我的纠纷
-    r = GET("/api/disputes", token=admin_tok, expected=200, name="获取我的纠纷")
+    # 7.3 查看我的纠纷（甲方视角）
+    r = GET("/api/disputes", token=buyer_tok, expected=200, name="甲方获取纠纷列表")
     if r.status_code == 200:
-        print(f"  [INFO] 纠纷数量: {len(r.json().get('items', r.json()))}")
+        print(f"  [INFO] 甲方纠纷数量: {len(r.json().get('items', r.json()))}")
 
-    # 7.4 无效 token
+    # 7.4 查看我的纠纷（乙方视角）
+    GET("/api/disputes", token=seller_tok, expected=200, name="乙方获取纠纷列表")
+
+    # 7.5 无效 token
     GET("/api/disputes", token="bad", expected=401, name="纠纷列表-无效token")
 
-    # 7.5 验收后再创建纠纷 → 应返回 400（关键：验证业务正确性）
-    _o4pay = POST(f"/api/orders/{_disp_order_id}/pay", token=admin_tok, expected=200,
-                  name="[Disputes]支付订单")
-    _o4acc = POST(f"/api/orders/{_disp_order_id}/accept", token=admin_tok, expected=200,
-                  name="[Disputes]验收订单")
+    # 7.6 验收后再创建纠纷 → 应返回 400（业务正确性）
+    _o4pay = POST(f"/api/orders/{_disp_order_id}/pay", token=buyer_tok, expected=200,
+                  name="[Disputes]甲方支付订单")
+    _o4acc = POST(f"/api/orders/{_disp_order_id}/accept", token=buyer_tok, expected=200,
+                  name="[Disputes]甲方验收订单")
     # 验收后再次创建纠纷 → 必须 400
     if _o4pay.status_code == 200 and _o4acc.status_code == 200:
-        # 需先找另一个纠纷不存在的订单，先建纠纷再验收再试
-        # 这里直接用当前订单验收后再创纠纷，期望 400
-        r_400 = POST("/api/disputes", token=admin_tok, json={
+        r_400 = POST("/api/disputes", token=buyer_tok, json={
             "order_id": _disp_order_id,
             "description": "验收后再次发起纠纷"
         }, expected=400, name="验收后创建纠纷-应400")
         if r_400.status_code == 400:
             print(f"  [OK]  验收后创建纠纷正确返回 400（业务逻辑正确）")
 else:
-    print("  [SKIP] 无可用订单，跳过 Disputes 模块")
+    print("  [SKIP] 无法创建测试订单，跳过 Disputes 模块")
 
 
 # ══════════════════════════════════════════════════════════════════════
