@@ -178,54 +178,98 @@ if not tok.get("admin"):
 
 admin_tok = tok["admin"]
 
-# ── Setup: 注册并批准一个甲方用户（用于 Demands/Quotes/Orders 测试）──
+# ── Setup: 准备甲乙方账号 ──
+# 策略：使用已有甲方/乙方账号，避免频繁注册触发限流
 buyer_tok = None
-ts = int(time.time())
-buyer_phone = f"139{ts % 100000000:08d}"
-r = POST("/api/auth/register", json={
-    "phone": buyer_phone, "real_name": "甲方测试用户",
-    "user_type": "业主", "password": "BuyerTest123",
-    "company_name": "甲方测试公司"
-}, expected=200, name="[Setup]注册甲方用户")
-if r.status_code == 200:
-    buyer_uid = r.json().get("user_id")
-    # 管理员批准
-    r2 = POST(f"/api/admin/users/{buyer_uid}/approve",
-              token=admin_tok, expected=200, name="[Setup]批准甲方用户")
-    if r2.status_code == 200:
-        # 登录获取 buyer token
-        r3 = POST("/api/auth/login", data={"username": buyer_phone, "password": "BuyerTest123"},
-                  expected=200, name="[Setup]甲方用户登录")
-        if r3.status_code == 200:
-            buyer_tok = r3.json()["access_token"]
-            print(f"  [INFO] Buyer token acquired: {buyer_tok[:20]}... (UID={buyer_uid})")
-        time.sleep(1)
-if not buyer_tok:
-    buyer_tok = admin_tok   # 降级用 admin
-    print(f"  [WARN] Buyer login failed, falling back to admin token")
-
-# ── 注册并批准一个乙方用户（用于 Quotes 测试）──
 seller_tok = None
-ts2 = int(time.time()) + 1
-seller_phone = f"138{ts2 % 100000000:08d}"
-r = POST("/api/auth/register", json={
-    "phone": seller_phone, "real_name": "乙方测试用户",
-    "user_type": "设计师", "password": "SellerTest123",
-    "company_name": "乙方测试公司"
-}, expected=200, name="[Setup]注册乙方用户")
-if r.status_code == 200:
-    seller_uid = r.json().get("user_id")
-    r2 = POST(f"/api/admin/users/{seller_uid}/approve",
-              token=admin_tok, expected=200, name="[Setup]批准乙方用户")
-    if r2.status_code == 200:
-        r3 = POST("/api/auth/login", data={"username": seller_phone, "password": "SellerTest123"},
-                  expected=200, name="[Setup]乙方用户登录")
-        if r3.status_code == 200:
-            seller_tok = r3.json()["access_token"]
+buyer_uid = None
+seller_uid = None
+
+# 尝试登录已有甲方账号（13830581253 是 MEMORY.md 中记录的甲方）
+for phone, pwd, role in [
+    ("13830581253", "owner123456", "buyer"),
+    ("13800000001", "Test123456", "buyer"),
+]:
+    if not buyer_tok:
+        r = POST("/api/auth/login", data={"username": phone, "password": pwd},
+                expected=200, name=f"[Setup]甲方登录({phone})")
+        if r.status_code == 200:
+            buyer_tok = r.json()["access_token"]
+            r2 = requests.get(BASE + "/api/auth/me",
+                             headers={"Authorization": f"Bearer {buyer_tok}"}, timeout=10)
+            if r2.status_code == 200:
+                buyer_uid = r2.json().get("id")
+                print(f"  [INFO] {role} token acquired: {buyer_tok[:20]}... (UID={buyer_uid})")
+        time.sleep(1)
+
+# 尝试登录已有乙方账号
+for phone, pwd, role in [
+    ("13883430767", "designer123456", "seller"),
+    ("13800000002", "Test123456", "seller"),
+]:
+    if not seller_tok:
+        r = POST("/api/auth/login", data={"username": phone, "password": pwd},
+                expected=200, name=f"[Setup]乙方登录({phone})")
+        if r.status_code == 200:
+            seller_tok = r.json()["access_token"]
+            r2 = requests.get(BASE + "/api/auth/me",
+                             headers={"Authorization": f"Bearer {seller_tok}"}, timeout=10)
+            if r2.status_code == 200:
+                seller_uid = r2.json().get("id")
+                print(f"  [INFO] {role} token acquired: {seller_tok[:20]}... (UID={seller_uid})")
+        time.sleep(1)
+
+# 如果已有账号都不可用，注册新账号（增加延迟避免限流）
+if not buyer_tok or not seller_tok:
+    time.sleep(3)  # 增加延迟避免限流
+    
+    if not buyer_tok:
+        ts = int(time.time())
+        buyer_phone = f"139{ts % 100000000:08d}"
+        r = POST("/api/auth/register", json={
+            "phone": buyer_phone, "real_name": "甲方测试用户",
+            "user_type": "业主", "password": "BuyerTest123",
+            "company_name": "甲方测试公司"
+        }, expected=200, name="[Setup]注册甲方用户")
+        if r.status_code == 200:
+            buyer_uid = r.json().get("user_id")
+            r2 = POST(f"/api/admin/users/{buyer_uid}/approve",
+                     token=admin_tok, expected=200, name="[Setup]批准甲方用户")
+            time.sleep(2)
+            if r2.status_code == 200:
+                r3 = POST("/api/auth/login", data={"username": buyer_phone, "password": "BuyerTest123"},
+                         expected=200, name="[Setup]甲方用户登录")
+                if r3.status_code == 200:
+                    buyer_tok = r3.json()["access_token"]
+                    print(f"  [INFO] Buyer registered: {buyer_tok[:20]}... (UID={buyer_uid})")
+                time.sleep(1)
+
+    if not seller_tok:
+        ts2 = int(time.time()) + 1
+        seller_phone = f"138{ts2 % 100000000:08d}"
+        r = POST("/api/auth/register", json={
+            "phone": seller_phone, "real_name": "乙方测试用户",
+            "user_type": "设计师", "password": "SellerTest123",
+            "company_name": "乙方测试公司"
+        }, expected=200, name="[Setup]注册乙方用户")
+        if r.status_code == 200:
+            seller_uid = r.json().get("user_id")
+            r2 = POST(f"/api/admin/users/{seller_uid}/approve",
+                     token=admin_tok, expected=200, name="[Setup]批准乙方用户")
+            time.sleep(2)
+            if r2.status_code == 200:
+                r3 = POST("/api/auth/login", data={"username": seller_phone, "password": "SellerTest123"},
+                         expected=200, name="[Setup]乙方用户登录")
+                if r3.status_code == 200:
+                    seller_tok = r3.json()["access_token"]
+                    print(f"  [INFO] Seller registered: {seller_tok[:20]}... (UID={seller_uid})")
             time.sleep(1)
+
+# 最终检查：如果仍然失败，输出警告但不 fallback
+if not buyer_tok:
+    print(f"  [WARN] Buyer setup failed, some tests will be skipped")
 if not seller_tok:
-    seller_tok = admin_tok
-    print(f"  [WARN] Seller login failed, falling back to admin token")
+    print(f"  [WARN] Seller setup failed, some tests will be skipped")
 
 # ── 公共测试数据容器 ──
 ids = {"demand": None, "quote": None, "order": None, "drawing": None,
