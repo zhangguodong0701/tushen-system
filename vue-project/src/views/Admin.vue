@@ -92,7 +92,7 @@
           </thead>
           <tbody>
             <tr v-for="d in demands" :key="d.id">
-              <td>#{{ d.id }}</td>
+              <td>{{ d.id }}</td>
               <td>{{ d.title }}</td>
               <td>{{ d.buyer_name }}</td>
               <td>
@@ -130,7 +130,7 @@
           </thead>
           <tbody>
             <tr v-for="o in orders" :key="o.id">
-              <td>#{{ o.id }}</td>
+              <td>{{ o.id }}</td>
               <td>{{ o.title }}</td>
               <td>{{ o.buyer_name }}</td>
               <td>{{ o.seller_name }}</td>
