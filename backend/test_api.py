@@ -187,7 +187,7 @@ seller_uid = None
 
 # 尝试登录已有甲方账号（13830581253 是 MEMORY.md 中记录的甲方）
 for phone, pwd, role in [
-    ("13830581253", "owner123456", "buyer"),
+    ("13830581253", "Test123456", "buyer"),
     ("13800000001", "Test123456", "buyer"),
 ]:
     if not buyer_tok:
@@ -204,7 +204,7 @@ for phone, pwd, role in [
 
 # 尝试登录已有乙方账号
 for phone, pwd, role in [
-    ("13883430767", "designer123456", "seller"),
+    ("13883430767", "Test123456", "seller"),
     ("13800000002", "Test123456", "seller"),
 ]:
     if not seller_tok:
