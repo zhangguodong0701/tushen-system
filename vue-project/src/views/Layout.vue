@@ -175,7 +175,7 @@ async function loadNotifications() {
     })
     if (res.ok) {
       const data = await res.json()
-      unreadCount.value = data.filter(n => !n.is_read).length
+      unreadCount.value = (data.items || []).filter(n => !n.is_read).length
     }
   } catch (e) {
     console.error('加载通知失败', e)

@@ -300,7 +300,7 @@ async function loadDashboard() {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     if (res.ok) {
-      notifications.value = await res.json()
+      notifications.value = (await res.json()).items || []
     }
   } catch (e) {
     console.error('加载通知失败', e)
@@ -313,7 +313,7 @@ async function loadDashboard() {
     })
     if (res.ok) {
       const data = await res.json()
-      activeOrders.value = data.filter(o => !['已完成', '已取消', '已关闭'].includes(o.status))
+      activeOrders.value = (data.items || []).filter(o => !['已完成', '已取消', '已关闭'].includes(o.status))
       stats.value.orders = activeOrders.value.length
     }
   } catch (e) {
@@ -327,7 +327,7 @@ async function loadDashboard() {
     })
     if (res.ok) {
       const data = await res.json()
-      stats.value.demands = data.length
+      stats.value.demands = data.total || 0
     }
   } catch (e) {
     console.error('加载需求失败', e)
@@ -340,7 +340,7 @@ async function loadDashboard() {
     })
     if (res.ok) {
       const data = await res.json()
-      stats.value.quotes = data.length
+      stats.value.quotes = data.total || 0
     }
   } catch (e) {
     console.error('加载报价失败', e)
