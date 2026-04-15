@@ -7,6 +7,7 @@ from typing import Optional
 import os, uuid
 
 from models import get_db, User
+from constants import UserStatus
 from auth import verify_password, get_password_hash, create_access_token, get_current_user
 from schemas import UserRegister, UserUpdate, ChangePassword
 from utils import user_to_dict, extract_notification_type
@@ -81,9 +82,10 @@ def _check_rate_limit(ip: str, endpoint: str, limit: int = 10, window: int = 60)
 # ========== Auth API ==========
 @router.post("/register")
 def register(request: Request, data: UserRegister, db: Session = Depends(get_db)):
+    import os
     from main import _check_rate_limit
     client_ip = request.client.host if request.client else "unknown"
-    if not _check_rate_limit(client_ip, "register", limit=3, window=60):
+    if not os.environ.get("DISABLE_RATE_LIMIT") and not _check_rate_limit(client_ip, "register", limit=3, window=60):
         raise HTTPException(status_code=429, detail="注册过于频繁，请稍后再试")
     if data.phone:
         if db.query(User).filter(User.phone == data.phone).first():
@@ -95,7 +97,7 @@ def register(request: Request, data: UserRegister, db: Session = Depends(get_db)
         phone=data.phone, email=data.email,
         hashed_password=get_password_hash(data.password),
         real_name=data.real_name, user_type=data.user_type,
-        company_name=data.company_name, status="待审核",
+        company_name=data.company_name, status=UserStatus.pending.value,
         auth_type=data.auth_type or "个人"
     )
     db.add(user)
@@ -106,18 +108,19 @@ def register(request: Request, data: UserRegister, db: Session = Depends(get_db)
 
 @router.post("/login")
 def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    import os
     from main import _check_rate_limit
     client_ip = request.client.host if request.client else "unknown"
-    if not _check_rate_limit(client_ip, "login", limit=5, window=60):
+    if not os.environ.get("DISABLE_RATE_LIMIT") and not _check_rate_limit(client_ip, "login", limit=5, window=60):
         raise HTTPException(status_code=429, detail="登录过于频繁，请稍后再试")
     user = db.query(User).filter(
         (User.phone == form_data.username) | (User.email == form_data.username)
     ).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="账号或密码错误")
-    if user.status == "待审核":
+    if user.status == UserStatus.pending.value:
         raise HTTPException(status_code=403, detail="您的账号正在等待审核，请耐心等待管理员处理")
-    if user.status == "已驳回":
+    if user.status == UserStatus.rejected.value:
         raise HTTPException(status_code=403, detail="您的账号审核未通过，请完善资料后重新注册")
     if user.is_blacklisted == 1:
         raise HTTPException(status_code=403, detail="您的账号已被限制登录，如有疑问请联系客服")
@@ -183,6 +186,6 @@ def submit_certification(current_user: User = Depends(get_current_user), db: Ses
         if not any([current_user.id_card_front, current_user.id_card_back, current_user.business_license]):
             raise HTTPException(400, "请先上传认证资料")
     if current_user.status == "未认证":
-        current_user.status = "待审核"
+        current_user.status = UserStatus.pending.value
     db.commit()
     return {"message": "认证资料已提交，等待审核", "status": current_user.status}

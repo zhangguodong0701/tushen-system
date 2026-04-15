@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
 
-from models import get_db, User, Order, PaymentPhase, Notification, FundRecord, OperationLog, Drawing
+from models import get_db, User, Order, PaymentPhase, Notification, FundRecord, OperationLog, Drawing, Quote
+from constants import OrderStatus, QuoteStatus, PhaseStatus
 from auth import get_current_user
 from schemas import OrderCreate, PhaseCreate
 from utils import order_to_dict, paginate_query
@@ -39,7 +40,7 @@ def create_order(data: OrderCreate, current_user: User = Depends(get_current_use
         raise HTTPException(404, "需求不存在")
     winning_quote = db.query(Quote).filter(
         Quote.demand_id == data.demand_id,
-        Quote.status == "中标",
+        Quote.status == QuoteStatus.accepted.value,
         Quote.bidder_id == current_user.id
     ).first()
     if not winning_quote:
@@ -97,9 +98,9 @@ def pay_order(order_id: int, current_user: User = Depends(get_current_user), db:
     order = db.query(Order).filter(Order.id == order_id, Order.buyer_id == current_user.id).first()
     if not order:
         raise HTTPException(404, "订单不存在")
-    if order.status not in ("待付款",):
+    if order.status != OrderStatus.pending_payment.value:
         raise HTTPException(400, "订单状态不允许支付")
-    order.status = "进行中"
+    order.status = OrderStatus.in_progress.value
     order.escrow_status = "已托管"
     _fund_record(db, order.id, current_user.id, "托管", order.amount, "out", f"订单资金托管，金额：{order.amount}元")
     _notify(db, order.seller_id, "资金托管通知", f"买方已支付{order.amount}元，资金已由平台托管，等待服务完成。")
@@ -112,11 +113,11 @@ def accept_order(order_id: int, current_user: User = Depends(get_current_user), 
     order = db.query(Order).filter(Order.id == order_id, Order.buyer_id == current_user.id).first()
     if not order:
         raise HTTPException(404, "订单不存在")
-    if order.status != "进行中":
+    if order.status != OrderStatus.in_progress.value:
         raise HTTPException(400, "订单状态不允许验收")
 
     if order.payment_type == "一次性":
-        order.status = "已完成"
+        order.status = OrderStatus.completed.value
         order.escrow_status = "已释放"
         _fund_record(db, order.id, order.seller_id, "放款", order.amount, "in", f"订单验收完成，一次性放款{order.amount}元")
         _notify(db, order.seller_id, "验收通过，资金已放款",
@@ -128,10 +129,10 @@ def accept_order(order_id: int, current_user: User = Depends(get_current_user), 
         phases = db.query(PaymentPhase).filter(PaymentPhase.order_id == order_id).all()
         if not phases:
             raise HTTPException(400, "分阶段订单尚未配置付款阶段")
-        unverified = [p for p in phases if p.status != "已验收"]
+        unverified = [p for p in phases if p.status != PhaseStatus.completed.value]
         if unverified:
             raise HTTPException(400, f"还有{len(unverified)}个阶段未验收")
-        order.status = "已完成"
+        order.status = OrderStatus.completed.value
         order.escrow_status = "已释放"
         _notify(db, order.seller_id, "订单完成", "所有付款阶段已验收，订单全部完成。")
         _log_action(db, current_user.id, "确认验收", "order", order_id, "买方确认全部阶段验收，订单完成（分阶段付款）")
@@ -146,9 +147,9 @@ def refund_order(order_id: int, current_user: User = Depends(get_current_user), 
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(404, "订单不存在")
-    if order.status in ("已完成", "已退款"):
+    if order.status in (OrderStatus.completed.value, OrderStatus.refunded.value):
         raise HTTPException(400, f"当前订单「{order.status}」状态不允许退款")
-    order.status = "已退款"
+    order.status = OrderStatus.refunded.value
     order.escrow_status = "已释放"
     _fund_record(db, order.id, order.buyer_id, "退款", order.amount, "in", f"管理员操作退款：{order.amount}元")
     _notify(db, order.buyer_id, "退款通知", f"您的订单已退款，金额{order.amount}元已退还。")
@@ -206,9 +207,9 @@ def complete_phase(phase_id: int, current_user: User = Depends(get_current_user)
         raise HTTPException(404, "关联订单不存在")
     if order.buyer_id != current_user.id:
         raise HTTPException(403, "只有订单甲方才能验收阶段")
-    if phase.status != "待验收":
+    if phase.status != PhaseStatus.pending_review.value:
         raise HTTPException(400, f"当前阶段状态「{phase.status}」不允许验收")
-    phase.status = "已验收"
+    phase.status = PhaseStatus.completed.value
     phase.completed_at = datetime.utcnow()
     _fund_record(db, phase.order_id, phase.order.seller_id if phase.order else None,
                  "阶段放款", phase.amount, "in", f"阶段「{phase.name}」验收放款")

@@ -3,7 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from sqlalchemy.orm import Session
 from typing import Optional
 
+from sqlalchemy import func
 from models import get_db, User, Demand, Order, Dispute, Notification, FundRecord, OperationLog, Feedback
+from constants import UserStatus, DemandStatus, OrderStatus, DisputeStatus
 from auth import get_current_user
 from utils import user_to_dict, demand_to_dict, order_to_dict, paginate_query
 
@@ -69,7 +71,7 @@ def approve_user(user_id: int, db: Session = Depends(get_db), reviewer=Depends(g
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "用户不存在")
-    user.status = "通过"
+    user.status = UserStatus.approved.value
     db.commit()
     notif = Notification(user_id=user_id, title="审核通过", content="您的账号已审核通过，可以正常使用平台。")
     db.add(notif)
@@ -85,7 +87,7 @@ async def reject_user(user_id: int, req: Request,
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "用户不存在")
-    user.status = "驳回"
+    user.status = UserStatus.rejected.value
     db.commit()
     reason_text = f"（原因：{reason}）" if reason else "请完善资质后重新提交。"
     notif = Notification(user_id=user_id, title="审核驳回", content=f"您的账号审核未通过，{reason_text}")
@@ -120,7 +122,7 @@ def admin_close_demand(demand_id: int, db: Session = Depends(get_db), admin=Depe
     demand = db.query(Demand).filter(Demand.id == demand_id).first()
     if not demand:
         raise HTTPException(404, "需求不存在")
-    demand.status = "已关闭"
+    demand.status = DemandStatus.closed.value
     _log_action(db, demand.owner_id, "关闭需求", "demand", demand_id, f"管理员关闭需求：{demand.title}")
     _notify(db, demand.owner_id, "需求关闭通知", f"您的需求「{demand.title}」已被管理员关闭。")
     db.commit()
@@ -167,15 +169,15 @@ def resolve_dispute(dispute_id: int, result: str = Form(...), action: str = Form
     if not dispute:
         raise HTTPException(404, "纠纷不存在")
     dispute.result = result
-    dispute.status = "已解决"
+    dispute.status = DisputeStatus.resolved.value
     order = db.query(Order).filter(Order.id == dispute.order_id).first()
     if order:
         if action == "refund":
-            order.status = "已退款"
+            order.status = OrderStatus.refunded.value
             order.escrow_status = "已释放"
             _fund_record(db, order.id, order.buyer_id, "退款", order.amount, "in", f"纠纷裁决退款：{result}")
         else:
-            order.status = "已完成"
+            order.status = OrderStatus.completed.value
             order.escrow_status = "已释放"
             _fund_record(db, order.id, order.seller_id, "放款", order.amount, "in", f"纠纷裁决放款：{result}")
         _log_action(db, dispute.initiator_id, "纠纷裁决", "dispute", dispute_id, result)
@@ -190,14 +192,17 @@ def resolve_dispute(dispute_id: int, result: str = Form(...), action: str = Form
 def admin_stats(db: Session = Depends(get_db), admin=Depends(get_current_admin)):
     return {
         "total_users": db.query(User).count(),
-        "pending_users": db.query(User).filter(User.status == "待审核").count(),
+        "pending_users": db.query(User).filter(User.status == UserStatus.pending.value).count(),
         "total_demands": db.query(Demand).count(),
-        "published_demands": db.query(Demand).filter(Demand.status == "已发布").count(),
+        "published_demands": db.query(Demand).filter(Demand.status == DemandStatus.published.value).count(),
         "total_orders": db.query(Order).count(),
-        "active_orders": db.query(Order).filter(Order.status == "进行中").count(),
+        "active_orders": db.query(Order).filter(Order.status == OrderStatus.in_progress.value).count(),
         "total_disputes": db.query(Dispute).count(),
-        "open_disputes": db.query(Dispute).filter(Dispute.status == "处理中").count(),
-        "total_amount": sum(o.amount for o in db.query(Order).filter(Order.status == "已完成").all()),
+        "open_disputes": db.query(Dispute).filter(Dispute.status == DisputeStatus.open.value).count(),
+        # 修复F1: 用数据库聚合替代内存遍历，避免N+1
+        "total_amount": db.query(func.sum(Order.amount)).filter(
+            Order.status == OrderStatus.completed.value
+        ).scalar() or 0,
     }
 
 
@@ -238,7 +243,7 @@ def unblacklist_user(user_id: int, db: Session = Depends(get_db), admin=Depends(
 # ========== 内容审核 ==========
 @router.get("/content-review")
 def admin_content_review(db: Session = Depends(get_db), reviewer=Depends(get_current_reviewer)):
-    demands = db.query(Demand).filter(Demand.status == "已发布").all()
+    demands = db.query(Demand).filter(Demand.status == DemandStatus.published.value).all()
     from models import Drawing
     drawings = db.query(Drawing).all()
     return {

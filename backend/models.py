@@ -1,7 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, ForeignKey, Enum
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from datetime import datetime
-import enum
 import os
 
 # 优先读取环境变量，回退到 SQLite（本地开发）
@@ -27,34 +26,9 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class UserType(str, enum.Enum):
-    material_supplier = "材料商"
-    equipment_supplier = "设备商"
-    design_institute = "设计院"
-    designer = "设计师"
+# 状态枚举统一从 constants 导入（禁止在 models 中硬编码字符串）
+from constants import UserStatus, DemandStatus, OrderStatus, DisputeStatus, QuoteStatus, FeedbackStatus, PhaseStatus
 
-class UserStatus(str, enum.Enum):
-    pending = "待审核"
-    approved = "通过"
-    rejected = "驳回"
-
-class DemandStatus(str, enum.Enum):
-    draft = "草稿"
-    published = "已发布"
-    in_progress = "进行中"
-    completed = "已完成"
-    closed = "已关闭"
-
-class OrderStatus(str, enum.Enum):
-    pending_payment = "待付款"
-    in_progress = "进行中"
-    completed = "已完成"
-    refunded = "已退款"
-
-class DisputeStatus(str, enum.Enum):
-    open = "处理中"
-    resolved = "已解决"
-    closed = "已关闭"
 
 class User(Base):
     __tablename__ = "users"
@@ -64,7 +38,7 @@ class User(Base):
     hashed_password = Column(String(200))
     real_name = Column(String(50))
     user_type = Column(String(20))
-    status = Column(String(20), default="待审核")
+    status = Column(String(20), default=UserStatus.pending.value)
     is_admin = Column(Integer, default=0)
     is_reviewer = Column(Integer, default=0)  # 审核员/客服标记
     company_name = Column(String(100))
@@ -96,7 +70,7 @@ class Demand(Base):
     deadline = Column(String(100), nullable=True)
     payment_type = Column(String(20), default="一次性")
     payment_phases = Column(Text)  # JSON格式，存储分阶段付款配置，如：[{"name":"初稿交付","ratio":30},{"name":"终稿验收","ratio":70}]
-    status = Column(String(20), default="草稿")
+    status = Column(String(20), default=DemandStatus.draft.value)
     profession = Column(String(50))
     demand_type = Column(String(50))
     file_url = Column(String(300))
@@ -114,7 +88,7 @@ class Quote(Base):
     bidder_id = Column(Integer, ForeignKey("users.id"))
     price = Column(Float)
     remark = Column(Text)
-    status = Column(String(20), default="待选择")
+    status = Column(String(20), default=QuoteStatus.pending.value)
     created_at = Column(DateTime, default=datetime.utcnow)
     demand = relationship("Demand", back_populates="quotes")
     bidder = relationship("User", foreign_keys=[bidder_id])
@@ -126,7 +100,7 @@ class Order(Base):
     buyer_id = Column(Integer, ForeignKey("users.id"))
     seller_id = Column(Integer, ForeignKey("users.id"))
     amount = Column(Float)
-    status = Column(String(20), default="待付款")
+    status = Column(String(20), default=OrderStatus.pending_payment.value)
     payment_type = Column(String(20), default="一次性")
     escrow_status = Column(String(20), default="未托管")  # 未托管/已托管/已释放
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -171,7 +145,7 @@ class Dispute(Base):
     description = Column(Text)
     evidence_url = Column(String(300))
     evidence_files = Column(Text, default="")  # JSON array of URLs
-    status = Column(String(20), default="处理中")
+    status = Column(String(20), default=DisputeStatus.open.value)
     result = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -188,7 +162,7 @@ class PaymentPhase(Base):
     ratio = Column(Integer, default=0)   # 阶段比例（百分比），如30表示30%
     phase_order = Column(Integer, default=0)  # 阶段序号，用于排序
     amount = Column(Float)               # 该阶段金额
-    status = Column(String(20), default="待验收")  # 待验收/已验收
+    status = Column(String(20), default=PhaseStatus.pending_review.value)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     # 关系定义
@@ -230,7 +204,7 @@ class Feedback(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     content = Column(Text)
-    status = Column(String(20), default="待处理")   # 待处理/已处理
+    status = Column(String(20), default=FeedbackStatus.pending.value)
     reply = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -6,6 +6,7 @@ from typing import Optional
 import os
 
 from models import get_db, User, Demand, Quote, Notification
+from constants import DemandStatus, QuoteStatus, OrderStatus
 from auth import get_current_user
 from schemas import DemandCreate, DemandUpdate, QuoteCreate
 from utils import demand_to_dict, is_jia_fang, is_yi_fang, paginate_query
@@ -43,7 +44,7 @@ def _notify(db, user_id, title, content_text):
 def create_demand(data: DemandCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not is_jia_fang(current_user):
         raise HTTPException(403, "只有甲方（业主/建设单位/项目方）才能发布需求")
-    demand = Demand(**data.model_dump(), owner_id=current_user.id, status="草稿")
+    demand = Demand(**data.model_dump(), owner_id=current_user.id, status=DemandStatus.draft.value)
     db.add(demand)
     db.commit()
     db.refresh(demand)
@@ -70,7 +71,7 @@ def publish_demand(demand_id: int, current_user: User = Depends(get_current_user
     demand = db.query(Demand).filter(Demand.id == demand_id, Demand.owner_id == current_user.id).first()
     if not demand:
         raise HTTPException(404, "需求不存在")
-    demand.status = "已发布"
+    demand.status = DemandStatus.published.value
     db.commit()
     return {"message": "发布成功"}
 
@@ -80,7 +81,7 @@ def delete_demand(demand_id: int, current_user: User = Depends(get_current_user)
     demand = db.query(Demand).filter(Demand.id == demand_id, Demand.owner_id == current_user.id).first()
     if not demand:
         raise HTTPException(404, "需求不存在")
-    if demand.status in ("已发布", "进行中", "已完成"):
+    if demand.status in (DemandStatus.published.value, DemandStatus.in_progress.value, DemandStatus.completed.value):
         raise HTTPException(400, f"当前需求「{demand.status}」状态不允许删除")
     db.delete(demand)
     db.commit()
@@ -92,12 +93,12 @@ def close_demand(demand_id: int, current_user: User = Depends(get_current_user),
     demand = db.query(Demand).filter(Demand.id == demand_id, Demand.owner_id == current_user.id).first()
     if not demand:
         raise HTTPException(404, "需求不存在")
-    if demand.status != "已发布":
+    if demand.status != DemandStatus.published.value:
         raise HTTPException(400, "只有已发布状态的需求才能关闭")
-    winner = db.query(Quote).filter(Quote.demand_id == demand_id, Quote.status == "中标").first()
+    winner = db.query(Quote).filter(Quote.demand_id == demand_id, Quote.status == QuoteStatus.accepted.value).first()
     if winner:
         raise HTTPException(400, "该需求已有中标方，无法关闭，请先取消中标")
-    demand.status = "已关闭"
+    demand.status = DemandStatus.closed.value
     db.commit()
     _notify(db, demand.owner_id, "需求已关闭", f"您发布的需求「{demand.title}」已被关闭。")
     return {"message": "需求已关闭"}
@@ -175,7 +176,7 @@ def create_quote(demand_id: int, data: QuoteCreate,
     demand = db.query(Demand).filter(Demand.id == demand_id).first()
     if not demand:
         raise HTTPException(404, "需求不存在")
-    if demand.status != "已发布":
+    if demand.status != DemandStatus.published.value:
         raise HTTPException(400, f"当前需求「{demand.status}」状态不允许报价")
     if demand.owner_id == current_user.id:
         raise HTTPException(400, "不能给自己的需求报价")
@@ -197,7 +198,7 @@ def update_quote(quote_id: int, data: QuoteCreate,
     quote = db.query(Quote).filter(Quote.id == quote_id, Quote.bidder_id == current_user.id).first()
     if not quote:
         raise HTTPException(404, "报价不存在")
-    if quote.status != "待选择":
+    if quote.status != QuoteStatus.pending.value:
         raise HTTPException(400, f"当前报价状态「{quote.status}」不允许编辑")
     quote.price = data.price
     quote.remark = data.remark
@@ -210,7 +211,7 @@ def cancel_quote(quote_id: int, current_user: User = Depends(get_current_user), 
     quote = db.query(Quote).filter(Quote.id == quote_id, Quote.bidder_id == current_user.id).first()
     if not quote:
         raise HTTPException(404, "报价不存在")
-    if quote.status != "待选择":
+    if quote.status != QuoteStatus.pending.value:
         raise HTTPException(400, f"当前报价状态「{quote.status}」不允许取消")
     db.delete(quote)
     db.commit()
@@ -251,21 +252,21 @@ def select_winner(demand_id: int, quote_id: int,
     demand = db.query(Demand).filter(Demand.id == demand_id, Demand.owner_id == current_user.id).first()
     if not demand:
         raise HTTPException(404, "需求不存在或无权限")
-    if demand.status not in ("已发布", "进行中"):
+    if demand.status not in (DemandStatus.published.value, DemandStatus.in_progress.value):
         raise HTTPException(400, f"该需求状态为「{demand.status}」，不允许选择中标方")
-    if demand.status == "进行中":
+    if demand.status == DemandStatus.in_progress.value:
         raise HTTPException(400, "该需求已有中标方")
 
     quote = db.query(Quote).filter(Quote.id == quote_id, Quote.demand_id == demand_id).first()
     if not quote:
         raise HTTPException(404, "报价不存在")
 
-    quote.status = "中标"
+    quote.status = QuoteStatus.accepted.value
     other_quotes = db.query(Quote).filter(Quote.demand_id == demand_id, Quote.id != quote_id).all()
     for other in other_quotes:
-        other.status = "未中标"
+        other.status = QuoteStatus.rejected.value
     demand.chosen_quote_id = quote_id
-    demand.status = "进行中"
+    demand.status = DemandStatus.in_progress.value
 
     order = Order(
         buyer_id=current_user.id,
@@ -273,7 +274,7 @@ def select_winner(demand_id: int, quote_id: int,
         seller_id=quote.bidder_id,
         amount=quote.price,
         payment_type=demand.payment_type,
-        status="待付款"
+        status=OrderStatus.pending_payment.value
     )
     db.add(order)
     db.commit()
@@ -290,7 +291,7 @@ def select_winner(demand_id: int, quote_id: int,
                     name=phase.get("name", f"阶段{i+1}"),
                     ratio=phase.get("ratio", 0),
                     amount=phase_amount,
-                    status="待验收",
+                    status=OrderStatus.pending_review.value,
                     phase_order=i + 1
                 )
                 db.add(payment_phase)

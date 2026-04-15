@@ -5,6 +5,7 @@ from typing import Optional
 import json, os, uuid
 
 from models import get_db, User, Order, Dispute, Notification
+from constants import DisputeStatus
 from auth import get_current_user
 from schemas import DisputeCreate
 from utils import paginate_query
@@ -39,7 +40,7 @@ def create_dispute(data: DisputeCreate, current_user: User = Depends(get_current
         raise HTTPException(400, f"当前订单状态（{order.status}）不允许发起纠纷")
     existing = db.query(Dispute).filter(
         Dispute.order_id == data.order_id,
-        Dispute.status == "处理中"
+        Dispute.status == DisputeStatus.open.value
     ).first()
     if existing:
         raise HTTPException(400, "该订单已有处理中的纠纷")
@@ -127,7 +128,7 @@ def upload_multiple_evidence(dispute_id: int, file: UploadFile = File(...),
     if dispute.evidence_files:
         try:
             files = json.loads(dispute.evidence_files)
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError):
             pass
     files.append({"filename": file.filename, "url": url})
     dispute.evidence_files = json.dumps(files, ensure_ascii=False)
@@ -150,6 +151,6 @@ def get_evidence_files(dispute_id: int, current_user: User = Depends(get_current
     if dispute.evidence_files:
         try:
             files = json.loads(dispute.evidence_files)
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError):
             pass
     return files

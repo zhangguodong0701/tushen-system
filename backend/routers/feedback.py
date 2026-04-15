@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from models import get_db, User, Feedback, Notification
+from constants import FeedbackStatus
 from auth import get_current_user
 from schemas import FeedbackCreate
 from utils import paginate_query
@@ -94,7 +95,7 @@ async def admin_reply_feedback(feedback_id: int, req: Request,
     if not fb:
         raise HTTPException(404, "反馈不存在")
     fb.reply = reply
-    fb.status = "已处理"
+    fb.status = FeedbackStatus.resolved.value
     _notify(db, fb.user_id, "投诉反馈回复", f"您提交的投诉反馈已有处理结果：{reply}")
     db.commit()
     return {"message": "回复已发送"}
