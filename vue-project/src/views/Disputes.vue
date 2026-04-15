@@ -24,7 +24,7 @@
           <tbody>
             <tr v-for="d in disputes" :key="d.id">
               <td><span class="badge badge-gray">{{ d.serial_number || `#${d.id}` }}</span></td>
-              <td>{{ d.order_title || `订单 #${d.order_id}` }}</td>
+              <td>{{ d.order_title || d.order_serial_number || '关联订单' }}</td>
               <td>{{ d.dispute_type }}</td>
               <td>
                 <span class="status-badge" :class="d.status">
@@ -80,7 +80,7 @@
             <div class="status-divider"></div>
             <div class="status-item">
               <span class="status-label">关联订单</span>
-              <span class="status-value">{{ selectedDispute.order_title || `订单 #${selectedDispute.order_id}` }}</span>
+              <span class="status-value">{{ selectedDispute.order_title || selectedDispute.order_serial_number || '关联订单' }}</span>
             </div>
           </div>
 

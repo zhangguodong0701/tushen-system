@@ -105,8 +105,8 @@
           </thead>
           <tbody>
             <tr v-for="d in disputes" :key="d.id">
-              <td>#{{ d.id }}</td>
-              <td>{{ d.order_title || `订单 #${d.order_id}` }}</td>
+              <td><span class="badge badge-gray">{{ d.serial_number || '#'+d.id }}</span></td>
+              <td>{{ d.order_title || d.order_serial_number || '关联订单' }}</td>
               <td>{{ d.dispute_type }}</td>
               <td>{{ d.initiator_name }}</td>
               <td>{{ formatTime(d.created_at) }}</td>
@@ -225,7 +225,7 @@
     <div v-if="selectedDispute" class="modal-overlay" @click.self="selectedDispute = null">
       <div class="modal dispute-modal">
         <div class="modal-header">
-          <h3>处理纠纷 #{{ selectedDispute.id }}</h3>
+          <h3>处理纠纷 {{ selectedDispute.serial_number || '#'+selectedDispute.id }}</h3>
           <button class="btn-close" @click="selectedDispute = null">
             <i class="fas fa-times"></i>
           </button>
@@ -236,7 +236,7 @@
             <h4>纠纷信息</h4>
             <div class="info-row">
               <label>关联订单：</label>
-              <span>{{ selectedDispute.order_title || `订单 #${selectedDispute.order_id}` }}</span>
+              <span>{{ selectedDispute.order_title || selectedDispute.order_serial_number || '关联订单' }}</span>
             </div>
             <div class="info-row">
               <label>纠纷类型：</label>
