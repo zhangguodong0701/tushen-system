@@ -45,7 +45,7 @@
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id">
-              <td>#{{ u.id }}</td>
+              <td><span class="badge badge-gray">{{ u.serial_number || '#'+u.id }}</span></td>
               <td>
                 <div>{{ u.real_name }}</div>
                 <div class="text-muted">{{ u.phone }}</div>

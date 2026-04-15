@@ -33,6 +33,7 @@ from constants import UserStatus, DemandStatus, OrderStatus, DisputeStatus, Quot
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    serial_number = Column(String(20), index=True, nullable=True)  # 用户流水号，如 U-20260415-A3K9
     phone = Column(String(20), unique=True, nullable=True)
     email = Column(String(100), unique=True, nullable=True)
     hashed_password = Column(String(200))

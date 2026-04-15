@@ -2,7 +2,7 @@
 migrate_serial_numbers.py - 存量数据流水号迁移脚本
 
 功能：
-  1. 为 demands/orders/disputes/quotes 表添加 serial_number 列（如尚不存在）
+  1. 为 users/demands/orders/disputes/quotes 表添加 serial_number 列（如尚不存在）
   2. 为现有记录生成统一格式流水号：PREFIX-YYYYMMDD-XXXX
 
 执行方式：
@@ -118,7 +118,8 @@ def main():
 
     # 逐表迁移
     total_updated = 0
-    total_updated += migrate_table(cursor, "demands",   "D") or 0
+    total_updated += migrate_table(cursor, "users",      "U") or 0
+    total_updated += migrate_table(cursor, "demands",    "D") or 0
     total_updated += migrate_table(cursor, "quotes",     "Q") or 0
     total_updated += migrate_table(cursor, "orders",     "O") or 0
     total_updated += migrate_table(cursor, "disputes",    "J") or 0
@@ -128,7 +129,7 @@ def main():
     # 打印样本
     print("\n" + "-" * 50)
     print("生成样本（每表前3条）：")
-    for table, prefix in [("demands", "D"), ("quotes", "Q"), ("orders", "O"), ("disputes", "J")]:
+    for table, prefix in [("users", "U"), ("demands", "D"), ("quotes", "Q"), ("orders", "O"), ("disputes", "J")]:
         try:
             cursor.execute(f"SELECT serial_number FROM {table} WHERE serial_number IS NOT NULL LIMIT 3")
             rows = [r[0] for r in cursor.fetchall()]

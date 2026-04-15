@@ -39,7 +39,9 @@ def user_to_dict(u):
     else:
         role = u.user_type or ""
     return {
-        "id": u.id, "phone": u.phone, "email": u.email,
+        "id": u.id,
+        "serial_number": getattr(u, 'serial_number', None) or "",
+        "phone": u.phone, "email": u.email,
         "real_name": u.real_name, "user_type": u.user_type,
         "role": role,  # 添加 role 字段
         "status": u.status, "is_admin": u.is_admin,

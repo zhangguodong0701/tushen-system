@@ -10,7 +10,7 @@ from models import get_db, User
 from constants import UserStatus
 from auth import verify_password, get_password_hash, create_access_token, get_current_user
 from schemas import UserRegister, UserUpdate, ChangePassword
-from utils import user_to_dict, extract_notification_type
+from utils import user_to_dict, extract_notification_type, generate_serial_number
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
@@ -98,7 +98,8 @@ def register(request: Request, data: UserRegister, db: Session = Depends(get_db)
         hashed_password=get_password_hash(data.password),
         real_name=data.real_name, user_type=data.user_type,
         company_name=data.company_name, status=UserStatus.pending.value,
-        auth_type=data.auth_type or "个人"
+        auth_type=data.auth_type or "个人",
+        serial_number=generate_serial_number("U")
     )
     db.add(user)
     db.commit()
