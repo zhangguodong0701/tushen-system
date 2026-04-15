@@ -20,6 +20,15 @@ def _notify(db, user_id, title, content_text):
 
 @router.post("/feedback")
 def create_feedback(data: FeedbackCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 内容安全校验：禁止测试关键字
+    test_patterns = ["RANDOM=", "test", "Test", "TEST", "mock", "Mock", "MOCK", "测试"]
+    content_lower = data.content.lower()
+    for pattern in test_patterns:
+        if pattern.lower() in content_lower:
+            raise HTTPException(400, "反馈内容包含无效关键字，请填写真实反馈内容")
+    if len(data.content.strip()) < 5:
+        raise HTTPException(400, "反馈内容至少5个字符")
+    
     fb = Feedback(user_id=current_user.id, content=data.content)
     db.add(fb)
     db.commit()
