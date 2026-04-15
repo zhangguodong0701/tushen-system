@@ -13,7 +13,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>订单</th>
               <th>纠纷类型</th>
               <th>状态</th>

@@ -20,7 +20,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>需求</th>
               <th>报价金额</th>
               <th>报价说明</th>

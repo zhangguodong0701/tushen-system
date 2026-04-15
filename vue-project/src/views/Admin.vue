@@ -21,7 +21,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>用户</th>
               <th>角色</th>
               <th>认证状态</th>
@@ -32,7 +32,7 @@
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id">
-              <td>{{ u.id }}</td>
+              <td><span class="badge badge-gray">{{ u.serial_number || '#'+u.id }}</span></td>
               <td>
                 <div>{{ u.real_name }}</div>
                 <div class="text-muted">{{ u.phone }}</div>
@@ -82,7 +82,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>需求标题</th>
               <th>发布者</th>
               <th>状态</th>
@@ -92,7 +92,7 @@
           </thead>
           <tbody>
             <tr v-for="d in demands" :key="d.id">
-              <td>{{ d.id }}</td>
+              <td><span class="badge badge-gray">{{ d.serial_number || '#'+d.id }}</span></td>
               <td>{{ d.title }}</td>
               <td>{{ d.buyer_name }}</td>
               <td>
@@ -119,7 +119,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>订单</th>
               <th>甲方</th>
               <th>乙方</th>
@@ -130,7 +130,7 @@
           </thead>
           <tbody>
             <tr v-for="o in orders" :key="o.id">
-              <td>{{ o.id }}</td>
+              <td><span class="badge badge-gray">{{ o.serial_number || '#'+o.id }}</span></td>
               <td>{{ o.title }}</td>
               <td>{{ o.buyer_name }}</td>
               <td>{{ o.seller_name }}</td>
@@ -154,7 +154,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>用户</th>
               <th>类型</th>
               <th>金额</th>
@@ -191,7 +191,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>用户</th>
               <th>手机号</th>
               <th>原因</th>
@@ -202,7 +202,7 @@
           </thead>
           <tbody>
             <tr v-for="b in blacklist" :key="b.id">
-              <td>{{ b.id }}</td>
+              <td><span class="badge badge-gray">{{ b.serial_number || '#'+b.id }}</span></td>
               <td>{{ b.user_name }}</td>
               <td>{{ b.phone }}</td>
               <td>{{ b.reason || '-' }}</td>

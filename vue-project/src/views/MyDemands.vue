@@ -23,7 +23,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>需求标题</th>
               <th>预算</th>
               <th>付款方式</th>

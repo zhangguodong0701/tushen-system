@@ -15,8 +15,9 @@ def generate_serial_number(prefix: str) -> str:
     示例：D-20260415-A3K9、O-20260415-7X2M、J-20260415-P9L3
     """
     date_part = datetime.utcnow().strftime("%Y%m%d")
-    chars = string.ascii_uppercase + string.digits  # 0-9, A-Z（不含IO）
-    chars = chars.replace('I', '').replace('O', '')  # 去除易混淆字符
+    chars = string.ascii_uppercase + string.digits  # 0-9, A-Z
+    # 去除易混淆字符：0, 1, O, I（数字0/1 与字母O/I 易混淆）
+    chars = chars.replace('I', '').replace('O', '').replace('0', '').replace('1', '')
     random_part = ''.join(random.choices(chars, k=4))
     return f"{prefix}-{date_part}-{random_part}"
 

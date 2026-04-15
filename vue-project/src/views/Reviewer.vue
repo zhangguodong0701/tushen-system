@@ -35,7 +35,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>用户</th>
               <th>类型</th>
               <th>认证类型</th>
@@ -94,7 +94,7 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>编号</th>
               <th>订单</th>
               <th>类型</th>
               <th>发起人</th>
