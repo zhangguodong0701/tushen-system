@@ -9,7 +9,7 @@ from models import get_db, User, Demand, Quote, Notification
 from constants import DemandStatus, QuoteStatus, OrderStatus
 from auth import get_current_user
 from schemas import DemandCreate, DemandUpdate, QuoteCreate
-from utils import demand_to_dict, is_jia_fang, is_yi_fang, paginate_query
+from utils import demand_to_dict, is_jia_fang, is_yi_fang, paginate_query, generate_serial_number
 
 router = APIRouter(prefix="/api", tags=["需求"])
 
@@ -45,6 +45,7 @@ def create_demand(data: DemandCreate, current_user: User = Depends(get_current_u
     if not is_jia_fang(current_user):
         raise HTTPException(403, "只有甲方（业主/建设单位/项目方）才能发布需求")
     demand = Demand(**data.model_dump(), owner_id=current_user.id, status=DemandStatus.draft.value)
+    demand.serial_number = generate_serial_number("D")
     db.add(demand)
     db.commit()
     db.refresh(demand)
@@ -184,12 +185,13 @@ def create_quote(demand_id: int, data: QuoteCreate,
     if existing:
         raise HTTPException(400, "已提交过报价")
     quote = Quote(demand_id=demand_id, bidder_id=current_user.id, **data.model_dump())
+    quote.serial_number = generate_serial_number("Q")
     db.add(quote)
     db.commit()
     db.refresh(quote)
     _notify(db, demand.owner_id, "📬 您有新报价",
             f"用户「{current_user.real_name}」对您的需求「{demand.title}」提交了报价：¥{data.price:,.0f}元。")
-    return {"id": quote.id, "price": quote.price, "remark": quote.remark, "status": quote.status}
+    return {"id": quote.id, "serial_number": quote.serial_number, "price": quote.price, "remark": quote.remark, "status": quote.status}
 
 
 @router.put("/quotes/{quote_id}")
@@ -221,7 +223,8 @@ def cancel_quote(quote_id: int, current_user: User = Depends(get_current_user), 
 @router.get("/demands/{demand_id}/quotes")
 def list_quotes(demand_id: int, db: Session = Depends(get_db)):
     quotes = db.query(Quote).filter(Quote.demand_id == demand_id).all()
-    return [{"id": q.id, "price": q.price, "remark": q.remark, "status": q.status,
+    return [{"id": q.id, "serial_number": getattr(q, 'serial_number', '') or '',
+             "price": q.price, "remark": q.remark, "status": q.status,
              "seller_id": q.bidder_id,
              "seller_name": q.bidder.phone if q.bidder else "",
              "seller_real_name": q.bidder.real_name if q.bidder else "",
@@ -237,7 +240,8 @@ def my_quotes(status: Optional[str] = None,
         q = q.filter(Quote.status == status)
     q = q.order_by(Quote.created_at.desc())
     result = paginate_query(q, page, page_size)
-    result["items"] = [{"id": q.id, "price": q.price, "remark": q.remark, "status": q.status,
+    result["items"] = [{"id": q.id, "serial_number": getattr(q, 'serial_number', '') or '',
+                        "price": q.price, "remark": q.remark, "status": q.status,
                         "demand_id": q.demand_id, "demand_title": q.demand.title if q.demand else "",
                         "created_at": str(q.created_at)} for q in result["items"]]
     return result
@@ -276,6 +280,7 @@ def select_winner(demand_id: int, quote_id: int,
         payment_type=demand.payment_type,
         status=OrderStatus.pending_payment.value
     )
+    order.serial_number = generate_serial_number("O")
     db.add(order)
     db.commit()
     db.refresh(order)

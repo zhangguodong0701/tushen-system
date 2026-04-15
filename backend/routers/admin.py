@@ -153,7 +153,8 @@ def admin_list_disputes(status: Optional[str] = None,
         q = q.filter(Dispute.status == status)
     q = q.order_by(Dispute.created_at.desc())
     result = paginate_query(q, page, page_size)
-    result["items"] = [{"id": d.id, "order_id": d.order_id, "description": d.description,
+    result["items"] = [{"id": d.id, "serial_number": getattr(d, 'serial_number', '') or '',
+                        "order_id": d.order_id, "description": d.description,
                         "evidence_url": d.evidence_url, "evidence_files": d.evidence_files,
                         "status": d.status, "result": d.result,
                         "initiator_id": d.initiator_id,

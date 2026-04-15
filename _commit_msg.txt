@@ -1,0 +1,24 @@
+refactor(Phase2+3): 规范化API路径/日志/响应+次生修复
+
+Phase 2 C2 (API单复数统一):
+- feedback.py: /api/admin/feedbacks 改为 /api/admin/feedback (GET+POST)
+- Reviewer.vue: /api/feedback/${id}/reply 改为 /api/admin/feedback/${id}/reply
+- Feedback.vue: 同上
+- test_system.py/test_full.py: 同步更新测试脚本中的路径
+
+Phase 2 C1+U1 (统一日志规范):
+- backend/utils/logger.py: 新建统一日志模块
+- 前端15处 console.error 改为 authStore.toast 或静默处理
+- auth.js: store内部改用 this.toast()
+
+Phase 3 U2 (响应格式规范化):
+- api/index.js: 新增 _normalize() + safeGet() 统一处理分页格式
+- 用法: const { items, _raw } = await api.safeGet('/api/feedback')
+
+次生修复 (顺藤摸瓜):
+- disputes.py: [\"进行中\",\"待验收\"] 硬编码 改为 OrderStatus+PhaseStatus 枚举
+- disputes.py: 补充导入 OrderStatus, PhaseStatus
+- test_full.py: 修复 len(r.json()) 对分页响应的不兼容
+
+Build: 前端 1.24s 通过
+Test:  53/59 (89%), 进化引擎特征库 23 条

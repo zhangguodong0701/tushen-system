@@ -173,7 +173,7 @@
               @click="router.push('/orders')"
             >
               <div class="order-info">
-                <div class="order-title">{{ order.title || `订单 #${order.id}` }}</div>
+                <div class="order-title">{{ order.serial_number || order.demand_title || `订单 #${order.id}` }}</div>
                 <div class="order-meta">
                   <span class="status-badge" :class="order.status">{{ statusText(order.status) }}</span>
                   <span class="order-amount">¥{{ formatAmount(order.amount) }}</span>
@@ -235,7 +235,7 @@
               @click="router.push('/disputes')"
             >
               <div class="dispute-info">
-                <div class="dispute-title">{{ d.title || `纠纷 #${d.id}` }}</div>
+                <div class="dispute-title">{{ d.serial_number || d.title || `纠纷 #${d.id}` }}</div>
                 <div class="dispute-meta">
                   <span class="badge badge-danger">处理中</span>
                   <span class="dispute-amount">¥{{ formatAmount(d.amount) }}</span>

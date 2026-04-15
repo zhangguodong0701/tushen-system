@@ -31,7 +31,7 @@
           </thead>
           <tbody>
             <tr v-for="q in quotes" :key="q.id">
-              <td><span class="badge badge-gray">#{{ q.id }}</span></td>
+              <td><span class="badge badge-gray">{{ q.serial_number || `#${q.id}` }}</span></td>
               <td>
                 <a href="#" @click.prevent="router.push(`/demands/${q.demand_id}`)">{{ q.demand_title }}</a>
               </td>

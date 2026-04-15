@@ -3,6 +3,22 @@ from sqlalchemy.orm import Session
 from fastapi import UploadFile
 from typing import Optional
 import json
+import random
+import string
+from datetime import datetime
+
+
+# ========== 流水号生成 ==========
+def generate_serial_number(prefix: str) -> str:
+    """生成统一格式流水号：PREFIX-YYYYMMDD-XXXX（4位随机大写字母+数字）
+    
+    示例：D-20260415-A3K9、O-20260415-7X2M、J-20260415-P9L3
+    """
+    date_part = datetime.utcnow().strftime("%Y%m%d")
+    chars = string.ascii_uppercase + string.digits  # 0-9, A-Z（不含IO）
+    chars = chars.replace('I', '').replace('O', '')  # 去除易混淆字符
+    random_part = ''.join(random.choices(chars, k=4))
+    return f"{prefix}-{date_part}-{random_part}"
 
 
 # ========== 分页辅助 ==========
@@ -41,7 +57,9 @@ def user_to_dict(u):
 
 def demand_to_dict(d):
     return {
-        "id": d.id, "title": d.title, "description": d.description,
+        "id": d.id,
+        "serial_number": getattr(d, 'serial_number', None) or "",
+        "title": d.title, "description": d.description,
         "budget": d.budget,
         "budget_min": getattr(d, 'budget_min', None),
         "budget_max": getattr(d, 'budget_max', None),
@@ -60,7 +78,9 @@ def demand_to_dict(d):
 
 def order_to_dict(o):
     return {
-        "id": o.id, "demand_id": o.demand_id,
+        "id": o.id,
+        "serial_number": getattr(o, 'serial_number', None) or "",
+        "demand_id": o.demand_id,
         "buyer_id": o.buyer_id, "seller_id": o.seller_id,
         "amount": o.amount, "status": o.status,
         "payment_type": o.payment_type,

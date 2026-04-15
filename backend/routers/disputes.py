@@ -8,7 +8,7 @@ from models import get_db, User, Order, Dispute, Notification
 from constants import DisputeStatus, OrderStatus, PhaseStatus
 from auth import get_current_user
 from schemas import DisputeCreate
-from utils import paginate_query
+from utils import paginate_query, generate_serial_number
 
 router = APIRouter(prefix="/api", tags=["纠纷"])
 
@@ -45,10 +45,11 @@ def create_dispute(data: DisputeCreate, current_user: User = Depends(get_current
     if existing:
         raise HTTPException(400, "该订单已有处理中的纠纷")
     dispute = Dispute(initiator_id=current_user.id, **data.model_dump())
+    dispute.serial_number = generate_serial_number("J")
     db.add(dispute)
     db.commit()
     db.refresh(dispute)
-    return {"id": dispute.id, "status": dispute.status}
+    return {"id": dispute.id, "serial_number": dispute.serial_number, "status": dispute.status}
 
 
 @router.post("/disputes/{dispute_id}/upload-evidence")
@@ -96,7 +97,9 @@ def list_disputes(status: Optional[str] = None,
         if initiator:
             initiator_name = initiator.real_name or initiator.phone
         items.append({
-            "id": d.id, "order_id": d.order_id,
+            "id": d.id,
+            "serial_number": getattr(d, 'serial_number', '') or '',
+            "order_id": d.order_id,
             "order_title": order_title or f"订单 #{d.order_id}",
             "dispute_type": "服务纠纷",
             "initiator_name": initiator_name or "未知",

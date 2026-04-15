@@ -62,6 +62,7 @@ class User(Base):
 class Demand(Base):
     __tablename__ = "demands"
     id = Column(Integer, primary_key=True, index=True)
+    serial_number = Column(String(20), index=True, nullable=True)  # 需求流水号，如 D-20260415-A3K9
     title = Column(String(200))
     description = Column(Text)
     budget = Column(Float, default=0)
@@ -84,6 +85,7 @@ class Demand(Base):
 class Quote(Base):
     __tablename__ = "quotes"
     id = Column(Integer, primary_key=True, index=True)
+    serial_number = Column(String(20), index=True, nullable=True)  # 报价流水号，如 Q-20260415-A3K9
     demand_id = Column(Integer, ForeignKey("demands.id"))
     bidder_id = Column(Integer, ForeignKey("users.id"))
     price = Column(Float)
@@ -96,6 +98,7 @@ class Quote(Base):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True, index=True)
+    serial_number = Column(String(20), index=True, nullable=True)  # 订单流水号，如 O-20260415-A3K9
     demand_id = Column(Integer, ForeignKey("demands.id"))
     buyer_id = Column(Integer, ForeignKey("users.id"))
     seller_id = Column(Integer, ForeignKey("users.id"))
@@ -140,6 +143,7 @@ class Notification(Base):
 class Dispute(Base):
     __tablename__ = "disputes"
     id = Column(Integer, primary_key=True, index=True)
+    serial_number = Column(String(20), index=True, nullable=True)  # 纠纷流水号，如 J-20260415-A3K9
     order_id = Column(Integer, ForeignKey("orders.id"))
     initiator_id = Column(Integer, ForeignKey("users.id"))
     description = Column(Text)

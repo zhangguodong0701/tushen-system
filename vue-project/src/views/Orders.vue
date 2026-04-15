@@ -32,8 +32,8 @@
           </thead>
           <tbody>
             <tr v-for="order in orders" :key="order.id">
-              <td><span class="badge badge-gray">{{ order.id }}</span></td>
-              <td>{{ order.demand_title || `需求 #${order.id}` }}</td>
+              <td><span class="badge badge-gray">{{ order.serial_number || `#${order.id}` }}</span></td>
+              <td>{{ order.demand_title || `需求 #${order.demand_id}` }}</td>
               <td class="amount">¥{{ order.amount }}</td>
               <td>
                 <span v-if="order.payment_type === '分阶段'" class="badge badge-info">分批</span>
@@ -74,7 +74,7 @@
     <div v-if="selectedOrder" class="modal-overlay" @click.self="closeOrderDetail">
       <div class="modal modal-large">
         <div class="modal-header">
-          <h3>订单详情 - {{ selectedOrder.demand_title || `需求 #${selectedOrder.id}` }}</h3>
+          <h3>订单详情 - {{ selectedOrder.serial_number || `#${selectedOrder.id}` }}</h3>
           <button class="btn-close" @click="closeOrderDetail">
             <i class="fas fa-times"></i>
           </button>
@@ -166,7 +166,7 @@
         <div class="modal-body">
           <div class="form-group">
             <label>订单信息</label>
-            <p class="order-info">{{ disputeOrder?.demand_title || `需求 #${disputeOrder?.id}` }} - ¥{{ disputeOrder?.amount }}</p>
+            <p class="order-info">{{ disputeOrder?.demand_title || '需求' }} ({{ disputeOrder?.serial_number || `#${disputeOrder?.id}` }}) - ¥{{ disputeOrder?.amount }}</p>
           </div>
           <div class="form-group">
             <label>纠纷描述 *</label>

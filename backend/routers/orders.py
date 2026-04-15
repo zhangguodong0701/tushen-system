@@ -8,7 +8,7 @@ from models import get_db, User, Order, PaymentPhase, Notification, FundRecord, 
 from constants import OrderStatus, QuoteStatus, PhaseStatus
 from auth import get_current_user
 from schemas import OrderCreate, PhaseCreate
-from utils import order_to_dict, paginate_query
+from utils import order_to_dict, paginate_query, generate_serial_number
 
 router = APIRouter(prefix="/api", tags=["订单"])
 
@@ -57,6 +57,7 @@ def create_order(data: OrderCreate, current_user: User = Depends(get_current_use
         amount=data.amount,
         payment_type=data.payment_type
     )
+    order.serial_number = generate_serial_number("O")
     db.add(order)
     db.commit()
     db.refresh(order)
