@@ -331,7 +331,7 @@ function saveLoginHistory(account, password) {
     localStorage.setItem('tushen_login_history', JSON.stringify(history))
     loginHistory.value = history
   } catch (e) {
-    console.error('保存登录历史失败:', e)
+    // 保存登录历史失败不影响登录，静默忽略
   }
 }
 

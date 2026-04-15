@@ -2,15 +2,26 @@
 // 外网访问时直接用 IP，内网/本地用 localhost
 const env = import.meta.env
 const hostname = window.location.hostname
-// 如果是外网 IP 或非本地访问，用外网 IP；否则用 localhost
 const isLocalAccess = hostname === 'localhost' || hostname === '127.0.0.1'
-export const API_BASE = isLocalAccess 
-  ? 'http://localhost:8000' 
+export const API_BASE = isLocalAccess
+  ? 'http://localhost:8000'
   : `http://${hostname}:8000`
 
 // 封装的 API 模块
 export const api = {
   baseURL: API_BASE,
+
+  // ---- 统一响应规范化（Phase3 U2）----
+  // 后端列表接口返回两种格式：
+  //   1. 分页：{ items: [...], total: N }
+  //   2. 数组：[ {...}, {...} ]
+  // _normalize() 统一返回数组，同时保留原始 data（含 total/page 等元数据）
+  _normalize(data) {
+    return {
+      items: Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []),
+      _raw: data  // 保留原始响应（含 total/page 等元数据）
+    }
+  },
 
   // 获取请求头
   getHeaders() {
@@ -22,7 +33,7 @@ export const api = {
     return headers
   },
 
-  // GET 请求
+  // GET 请求（标准版，原样返回原始 JSON）
   async get(path) {
     const res = await fetch(`${this.baseURL}${path}`, {
       headers: this.getHeaders()
@@ -32,6 +43,15 @@ export const api = {
       throw new Error(error.detail || '请求失败')
     }
     return res.json()
+  },
+
+  // GET 请求（列表专用，自动规范化格式）
+  // 用法：const { items, _raw } = await api.safeGet('/api/feedback')
+  //   items = 数组（自动处理 data.items 和 data=[] 两种情况）
+  //   _raw = 原始响应（含 total/page 等元数据）
+  async safeGet(path) {
+    const raw = await this.get(path)
+    return this._normalize(raw)
   },
 
   // POST 请求

@@ -99,7 +99,7 @@ async function handleNotification(n) {
       n.is_read = true
       window.dispatchEvent(new CustomEvent('notifications-updated'))
     } catch (e) {
-      console.error('标记已读失败', e)
+      authStore.toast('标记已读失败', 'error')
     }
   }
 

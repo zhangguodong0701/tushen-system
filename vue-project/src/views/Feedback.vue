@@ -123,7 +123,7 @@ async function replyFeedback(feedbackId) {
     return
   }
   try {
-    await api.post(`/api/admin/feedbacks/${feedbackId}/reply`, { reply: replyContent.value })
+    await api.post(`/api/admin/feedback/${feedbackId}/reply`, { reply: replyContent.value })
     authStore.toast('回复成功', 'success')
     replyContent.value = ''
     loadFeedbacks()

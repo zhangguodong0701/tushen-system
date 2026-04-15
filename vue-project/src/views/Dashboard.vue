@@ -303,7 +303,7 @@ async function loadDashboard() {
       notifications.value = (await res.json()).items || []
     }
   } catch (e) {
-    console.error('加载通知失败', e)
+    authStore.toast('加载通知失败', 'error')
   }
 
   // 加载订单
@@ -317,7 +317,7 @@ async function loadDashboard() {
       stats.value.orders = activeOrders.value.length
     }
   } catch (e) {
-    console.error('加载订单失败', e)
+    authStore.toast('加载订单失败', 'error')
   }
 
   // 加载需求
@@ -330,7 +330,7 @@ async function loadDashboard() {
       stats.value.demands = data.total || 0
     }
   } catch (e) {
-    console.error('加载需求失败', e)
+    authStore.toast('加载需求失败', 'error')
   }
 
   // 加载报价
@@ -343,7 +343,7 @@ async function loadDashboard() {
       stats.value.quotes = data.total || 0
     }
   } catch (e) {
-    console.error('加载报价失败', e)
+    authStore.toast('加载报价失败', 'error')
   }
 }
 
@@ -361,7 +361,7 @@ async function loadAdminDashboard() {
       adminStats.value.pendingUsers = data.total || pendingUsers.value.length
     }
   } catch (e) {
-    console.error('加载待审核用户失败', e)
+    authStore.toast('加载待审核用户失败', 'error')
   }
 
   // 加载待审核需求
@@ -374,7 +374,7 @@ async function loadAdminDashboard() {
       adminStats.value.pendingDemands = data.total || 0
     }
   } catch (e) {
-    console.error('加载待审核需求失败', e)
+    authStore.toast('加载待审核需求失败', 'error')
   }
 
   // 加载待处理纠纷
@@ -388,7 +388,7 @@ async function loadAdminDashboard() {
       adminStats.value.pendingDisputes = data.total || pendingDisputes.value.length
     }
   } catch (e) {
-    console.error('加载纠纷失败', e)
+    authStore.toast('加载纠纷失败', 'error')
   }
 
   // 加载待处理反馈
@@ -401,7 +401,7 @@ async function loadAdminDashboard() {
       adminStats.value.pendingFeedbacks = data.total || 0
     }
   } catch (e) {
-    console.error('加载反馈失败', e)
+    authStore.toast('加载反馈失败', 'error')
   }
 
   // 加载总用户数
@@ -414,7 +414,7 @@ async function loadAdminDashboard() {
       adminStats.value.totalUsers = data.total || 0
     }
   } catch (e) {
-    console.error('加载用户总数失败', e)
+    authStore.toast('加载用户总数失败', 'error')
   }
 }
 

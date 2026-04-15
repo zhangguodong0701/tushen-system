@@ -64,8 +64,8 @@ export const useAuthStore = defineStore('auth', () => {
       // 其他错误不清除用户状态，保持登录状态
       return null
     } catch (e) {
-      console.error('获取用户信息失败', e)
       // 网络错误时保持登录状态，不清除用户
+      this.toast('获取用户信息失败', 'error')
       return null
     }
   }

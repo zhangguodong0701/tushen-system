@@ -5,7 +5,7 @@ from typing import Optional
 import json, os, uuid
 
 from models import get_db, User, Order, Dispute, Notification
-from constants import DisputeStatus
+from constants import DisputeStatus, OrderStatus, PhaseStatus
 from auth import get_current_user
 from schemas import DisputeCreate
 from utils import paginate_query
@@ -36,7 +36,7 @@ def create_dispute(data: DisputeCreate, current_user: User = Depends(get_current
         raise HTTPException(404, "关联订单不存在")
     if order.buyer_id != current_user.id and order.seller_id != current_user.id:
         raise HTTPException(403, "只有订单参与方才能发起纠纷")
-    if order.status not in ["进行中", "待验收"]:
+    if order.status not in [OrderStatus.in_progress.value, PhaseStatus.pending_review.value]:
         raise HTTPException(400, f"当前订单状态（{order.status}）不允许发起纠纷")
     existing = db.query(Dispute).filter(
         Dispute.order_id == data.order_id,

@@ -156,7 +156,6 @@ async function loadVersions() {
     versionInfo.value = await api.get(`/api/drawings/${drawingId.value}/versions`)
   } catch (e) {
     authStore.toast('加载版本历史失败', 'error')
-    console.error(e)
   } finally {
     loading.value = false
   }

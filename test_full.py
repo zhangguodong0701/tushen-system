@@ -895,40 +895,42 @@ if r.status_code == 200:
     print(f"       我的反馈数: {len(r.json())}")
 
 # 9.3 管理员查看所有反馈
-r = get("/api/admin/feedbacks", token=admin_token, name="管理员查看所有反馈")
+r = get("/api/admin/feedback", token=admin_token, name="管理员查看所有反馈")
 if r.status_code == 200:
-    print(f"       全平台反馈数: {len(r.json())}")
+    data = r.json()
+    print(f"       全平台反馈数: {len(data.get('items', data))}")
 
 # 9.4 审核员查看所有反馈
 if reviewer_token:
-    r = get("/api/admin/feedbacks", token=reviewer_token, name="审核员查看所有反馈")
+    r = get("/api/admin/feedback", token=reviewer_token, name="审核员查看所有反馈")
     if r.status_code == 200:
-        print(f"       审核员看到反馈数: {len(r.json())}")
+        data = r.json()
+        print(f"       审核员看到反馈数: {len(data.get('items', data))}")
 
 # 9.5 普通用户不能查看所有反馈
-get("/api/admin/feedbacks", token=seller_token, expect=403,
+get("/api/admin/feedback", token=seller_token, expect=403,
     name="普通用户查看所有反馈应返回403")
 
 # 9.6 管理员回复反馈
 if feedback_id:
-    post(f"/api/admin/feedbacks/{feedback_id}/reply",
+    post(f"/api/admin/feedback/{feedback_id}/reply",
          token=admin_token,
-         params={"reply": "感谢您的建议，我们已纳入产品规划"},
+         json_data={"reply": "感谢您的建议，我们已纳入产品规划"},
          name="管理员回复用户反馈")
 
 # 9.7 审核员回复反馈
-r = get("/api/admin/feedbacks", token=admin_token)
-if r.status_code == 200 and r.json():
-    any_fb_id = r.json()[-1]["id"]
+r = get("/api/admin/feedback", token=admin_token)
+if r.status_code == 200 and r.json().get('items'):
+    any_fb_id = r.json()["items"][-1]["id"]
     if reviewer_token:
-        post(f"/api/admin/feedbacks/{any_fb_id}/reply",
+        post(f"/api/admin/feedback/{any_fb_id}/reply",
              token=reviewer_token,
-             params={"reply": "审核员已受理您的反馈"},
+             json_data={"reply": "审核员已受理您的反馈"},
              name="审核员回复用户反馈")
 
 # 9.8 不存在的反馈
-post("/api/admin/feedbacks/99999/reply", token=admin_token,
-     params={"reply": "test"}, expect=404,
+post("/api/admin/feedback/99999/reply", token=admin_token,
+     json_data={"reply": "test"}, expect=404,
      name="回复不存在反馈应返回404")
 
 # 9.9 无效token提交反馈
@@ -947,7 +949,7 @@ else:
     # 审核员可以访问内容审核
     get("/api/admin/content-review", token=reviewer_token, name="审核员-访问内容审核")
     # 审核员可以查看和回复反馈
-    get("/api/admin/feedbacks", token=reviewer_token, name="审核员-查看所有反馈")
+    get("/api/admin/feedback", token=reviewer_token, name="审核员-查看所有反馈")
 
     # 审核员不能访问管理员专属接口（如用户审核、黑名单）
     get("/api/admin/stats", token=reviewer_token, expect=403,

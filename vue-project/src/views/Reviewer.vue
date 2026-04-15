@@ -467,7 +467,7 @@ async function submitReply(f) {
     return
   }
   try {
-    await api.post(`/api/feedback/${f.id}/reply`, { reply: content })
+    await api.post(`/api/admin/feedback/${f.id}/reply`, { reply: content })
     authStore.toast('回复成功', 'success')
     delete replyContent.value[f.id]
     loadData()

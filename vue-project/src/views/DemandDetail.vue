@@ -504,7 +504,7 @@ async function loadQuotes() {
       hasQuoted.value = quotes.value.some(q => q.seller_id === authStore.user.id)
     }
   } catch (e) {
-    console.error('加载报价失败', e)
+    authStore.toast('加载报价失败', 'error')
   }
 }
 

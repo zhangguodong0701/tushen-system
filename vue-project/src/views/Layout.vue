@@ -178,7 +178,7 @@ async function loadNotifications() {
       unreadCount.value = (data.items || []).filter(n => !n.is_read).length
     }
   } catch (e) {
-    console.error('加载通知失败', e)
+    authStore.toast('加载通知失败', 'error')
   }
 }
 

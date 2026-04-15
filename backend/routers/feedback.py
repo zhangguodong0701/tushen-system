@@ -56,8 +56,9 @@ def list_my_feedback(status: Optional[str] = None,
 
 
 # ========== 管理员反馈管理 ==========
-@router.get("/admin/feedbacks")
-def admin_list_feedbacks(status: Optional[str] = None,
+# 统一单数路径：/api/admin/feedback（原 /api/admin/feedbacks，修复单复数不一致）
+@router.get("/admin/feedback")
+def admin_list_feedback(status: Optional[str] = None,
                          page: int = 1, page_size: int = 20,
                          db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user.is_reviewer and not current_user.is_admin:
@@ -82,7 +83,7 @@ def admin_list_feedbacks(status: Optional[str] = None,
             "page_size": page_result["page_size"], "items": items}
 
 
-@router.post("/admin/feedbacks/{feedback_id}/reply")
+@router.post("/admin/feedback/{feedback_id}/reply")
 async def admin_reply_feedback(feedback_id: int, req: Request,
                                db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user.is_reviewer and not current_user.is_admin:

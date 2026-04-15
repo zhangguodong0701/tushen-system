@@ -753,7 +753,8 @@ def test_feedback():
         if admin_token:
             reply_data = {"reply": "感谢您的反馈，我们会认真考虑您的建议"}
             reply_resp = requests.post(
-                API(f"/api/admin/feedbacks/{fb_id}/reply?reply=感谢您的反馈，我们会认真考虑您的建议"),
+                API(f"/api/admin/feedback/{fb_id}/reply"),
+                json={"reply": "感谢您的反馈，我们会认真考虑您的建议"},
                 headers=get_headers(admin_token)
             )
             print_result("管理员回复", reply_resp.status_code == 200,
