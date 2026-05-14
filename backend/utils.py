@@ -113,8 +113,9 @@ def extract_notification_type(title: str) -> str:
 
 
 # ========== 角色判断辅助 ==========
-JIA_FANG_TYPES = ['业主', '建设单位', '项目方']
-YI_FANG_TYPES = ['设计院', '设计师', '材料商', '设备商']
+# 兼容中文和英文两种存储方式
+JIA_FANG_TYPES = ['业主', '建设单位', '项目方', 'owner']
+YI_FANG_TYPES = ['设计院', '设计师', '材料商', '设备商', 'designer']
 
 
 def is_jia_fang(user) -> bool:
