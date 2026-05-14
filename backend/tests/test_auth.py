@@ -37,9 +37,9 @@ class TestAuthRegister:
         assert "已注册" in resp.text
 
     def test_register_invalid_user_type(self, client):
-        """无效用户类型（后端不强制校验，允许注册）"""
         c, _ = client
         resp = c.post("/api/auth/register", json={
+
             "phone": "13800000003",
             "password": "test123456",
             "real_name": "王五",
@@ -108,16 +108,17 @@ class TestAuthLogin:
     def test_login_pending_user(self, client):
         """待审核用户不能登录"""
         c, _ = client
-        c.post("/api/auth/register", json={
+        # 注册后 status 默认为待审核，密码需至少8位
+        r = c.post("/api/auth/register", json={
             "phone": "13800000012",
-            "password": "pending",
+            "password": "pending123",
             "real_name": "待审核用户",
-            "user_type": "设计师"
-            # 不设置 status=通过，默认是"待审核"
+            "user_type": "designer"
         })
+        assert r.status_code == 200, f"注册失败: {r.text}"
         resp = c.post("/api/auth/login", data={
             "username": "13800000012",
-            "password": "pending"
+            "password": "pending123"
         })
         assert resp.status_code == 403
 

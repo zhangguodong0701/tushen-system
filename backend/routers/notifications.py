@@ -10,6 +10,16 @@ from utils import paginate_query, extract_notification_type
 router = APIRouter(prefix="/api", tags=["通知"])
 
 
+@router.get("/notifications/unread-count")
+def get_unread_count(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """获取未读通知数量"""
+    count = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_read == 0
+    ).count()
+    return {"unread_count": count}
+
+
 @router.get("/notifications")
 def list_notifications(is_read: Optional[str] = None,
                       page: int = 1, page_size: int = 20,

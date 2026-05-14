@@ -8,8 +8,8 @@ collecting ... collected 39 items
 
 tests/test_admin.py::TestAdminUserList::test_list_users_success PASSED   [  2%]
 tests/test_admin.py::TestAdminUserList::test_list_users_not_admin PASSED [  5%]
-tests/test_admin.py::TestAdminApproveUser::test_approve_user_success PASSED [  7%]
-tests/test_admin.py::TestAdminStats::test_get_stats_success PASSED       [ 10%]
+tests/test_admin.py::TestAdminApproveUser::test_approve_user_success ERROR [  7%]
+tests/test_admin.py::TestAdminStats::test_get_stats_success FAILED       [ 10%]
 tests/test_auth.py::TestAuthRegister::test_register_success PASSED       [ 12%]
 tests/test_auth.py::TestAuthRegister::test_register_duplicate_phone PASSED [ 15%]
 tests/test_auth.py::TestAuthRegister::test_register_invalid_user_type PASSED [ 17%]
@@ -30,14 +30,14 @@ tests/test_demands.py::TestDemandList::test_list_demands_status_filter PASSED [ 
 tests/test_demands.py::TestDemandPublish::test_publish_demand_success PASSED [ 56%]
 tests/test_demands.py::TestDemandPublish::test_delete_demand_forbidden_status PASSED [ 58%]
 tests/test_demands.py::TestDemandPublish::test_delete_draft_demand_success PASSED [ 61%]
-tests/test_disputes.py::TestDisputeCreate::test_create_dispute_success FAILED [ 64%]
+tests/test_disputes.py::TestDisputeCreate::test_create_dispute_success ERROR [ 64%]
 tests/test_drawings.py::TestDrawingUpload::test_upload_drawing_success FAILED [ 66%]
-tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_success FAILED [ 69%]
+tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_success ERROR [ 69%]
 tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_too_short PASSED [ 71%]
 tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_without_token PASSED [ 74%]
 tests/test_notifications.py::TestNotificationList::test_list_notifications_success PASSED [ 76%]
 tests/test_notifications.py::TestNotificationList::test_list_notifications_not_auth PASSED [ 79%]
-tests/test_notifications.py::TestNotificationUnread::test_get_unread_count PASSED [ 82%]
+tests/test_notifications.py::TestNotificationUnread::test_get_unread_count FAILED [ 82%]
 tests/test_orders.py::TestQuoteAndOrder::test_quote_and_order_flow PASSED [ 84%]
 tests/test_orders.py::TestQuoteAndOrder::test_yi_cannot_quote_own_demand PASSED [ 87%]
 tests/test_orders.py::TestOrderPayment::test_order_pay_success PASSED    [ 89%]
@@ -46,36 +46,50 @@ tests/test_orders.py::TestOrderAccept::test_order_accept_and_complete PASSED [ 9
 tests/test_orders.py::TestOrderPagination::test_orders_pagination PASSED [ 97%]
 tests/test_simple.py::TestBasic::test_auth_me_success PASSED             [100%]
 
+=================================== ERRORS ====================================
+______ ERROR at setup of TestAdminApproveUser.test_approve_user_success _______
+file C:\Users\18680\WorkBuddy\20260330124614\tushen-system\backend\tests\test_admin.py, line 25
+      def test_approve_user_success(self, admin_headers, client, session):
+E       fixture 'session' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, admin_headers, admin_token, anyio_backend, anyio_backend_name, anyio_backend_options, auth_headers, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, client, cov, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, jia_headers, jia_user, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_test_env, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, yi_headers, yi_user
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\18680\WorkBuddy\20260330124614\tushen-system\backend\tests\test_admin.py:25
+_______ ERROR at setup of TestDisputeCreate.test_create_dispute_success _______
+file C:\Users\18680\WorkBuddy\20260330124614\tushen-system\backend\tests\test_disputes.py, line 8
+      def test_create_dispute_success(self, jia_headers, yi_headers, client, session):
+E       fixture 'session' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, admin_headers, admin_token, anyio_backend, anyio_backend_name, anyio_backend_options, auth_headers, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, client, cov, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, jia_headers, jia_user, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_test_env, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, yi_headers, yi_user
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\18680\WorkBuddy\20260330124614\tushen-system\backend\tests\test_disputes.py:8
+______ ERROR at setup of TestFeedbackCreate.test_create_feedback_success ______
+file C:\Users\18680\WorkBuddy\20260330124614\tushen-system\backend\tests\test_feedback.py, line 8
+      def test_create_feedback_success(self, jia_headers, client, session):
+E       fixture 'session' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, admin_headers, admin_token, anyio_backend, anyio_backend_name, anyio_backend_options, auth_headers, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, client, cov, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, jia_headers, jia_user, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_test_env, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, yi_headers, yi_user
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\18680\WorkBuddy\20260330124614\tushen-system\backend\tests\test_feedback.py:8
 ================================== FAILURES ===================================
+____________________ TestAdminStats.test_get_stats_success ____________________
+tests\test_admin.py:60: in test_get_stats_success
+    assert "user_count" in data
+E   AssertionError: assert 'user_count' in {'active_orders': 0, 'open_disputes': 0, 'pending_users': 0, 'published_demands': 0, ...}
 ____________________ TestAuthLogin.test_login_pending_user ____________________
-tests\test_auth.py:118: in test_login_pending_user
-    assert r.status_code == 200, f"◊¢≤· ß∞‹: {r.text}"
-E   AssertionError: ◊¢≤· ß∞‹: {"detail":[{"type":"value_error","loc":["body","password"],"msg":"Value error, √‹¬Î÷¡…Ÿ8Œª","input":"pending","ctx":{"error":{}}}]}
-E   assert 422 == 200
-E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
-________________ TestDisputeCreate.test_create_dispute_success ________________
-tests\test_disputes.py:37: in test_create_dispute_success
-    demand = Demand(
-<string>:4: in __init__
-    ???
-..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\state.py:596: in _initialize_instance
-    with util.safe_reraise():
-..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
-    raise exc_value.with_traceback(exc_tb)
-..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\state.py:594: in _initialize_instance
-    manager.original_init(*mixed[1:], **kwargs)
-..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\decl_base.py:2179: in _declarative_constructor
-    raise TypeError(
-E   TypeError: 'category' is an invalid keyword argument for Demand
-________________ TestDrawingUpload.test_upload_drawing_success ________________
-tests\test_drawings.py:32: in test_upload_drawing_success
-    order_id = resp.json()["order_id"]
-E   KeyError: 'order_id'
-_______________ TestFeedbackCreate.test_create_feedback_success _______________
-tests\test_feedback.py:16: in test_create_feedback_success
-    assert resp.status_code == 200
-E   assert 400 == 200
+tests\test_auth.py:122: in test_login_pending_user
+    assert resp.status_code == 403
+E   assert 400 == 403
 E    +  where 400 = <Response [400 Bad Request]>.status_code
+________________ TestDrawingUpload.test_upload_drawing_success ________________
+tests\test_drawings.py:26: in test_upload_drawing_success
+    }, headers=yi_headers)
+E   NameError: name 'yi_headers' is not defined
+________________ TestNotificationUnread.test_get_unread_count _________________
+tests\test_notifications.py:29: in test_get_unread_count
+    assert resp.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
 ============================== warnings summary ===============================
 tests/test_admin.py::TestAdminUserList::test_list_users_success
   c:\\Users\\18680\\WorkBuddy\\20260330124614\\tushen-system\\backend\\auth.py:17: UserWarning: \u26a0\ufe0f \u4f7f\u7528\u9ed8\u8ba4 SECRET_KEY\uff0c\u8bf7\u8bbe\u7f6e TUSHEN_SECRET_KEY \u73af\u5883\u53d8\u91cf\uff01\n    warnings.warn("\u26a0\ufe0f \u4f7f\u7528\u9ed8\u8ba4 SECRET_KEY\uff0c\u8bf7\u8bbe\u7f6e TUSHEN_SECRET_KEY \u73af\u5883\u53d8\u91cf\uff01")
@@ -108,8 +122,11 @@ tests/test_admin.py::TestAdminUserList::test_list_users_success
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =========================== short test summary info ===========================
-FAILED tests/test_auth.py::TestAuthLogin::test_login_pending_user - Assertion...
-FAILED tests/test_disputes.py::TestDisputeCreate::test_create_dispute_success
+FAILED tests/test_admin.py::TestAdminStats::test_get_stats_success - Assertio...
+FAILED tests/test_auth.py::TestAuthLogin::test_login_pending_user - assert 40...
 FAILED tests/test_drawings.py::TestDrawingUpload::test_upload_drawing_success
-FAILED tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_success
-================== 4 failed, 35 passed, 5 warnings in 24.69s ==================
+FAILED tests/test_notifications.py::TestNotificationUnread::test_get_unread_count
+ERROR tests/test_admin.py::TestAdminApproveUser::test_approve_user_success
+ERROR tests/test_disputes.py::TestDisputeCreate::test_create_dispute_success
+ERROR tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_success
+============= 4 failed, 32 passed, 5 warnings, 3 errors in 24.48s =============

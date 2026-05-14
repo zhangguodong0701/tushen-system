@@ -4,58 +4,52 @@ cachedir: .pytest_cache
 rootdir: c:\Users\18680\WorkBuddy\20260330124614\tushen-system\backend
 plugins: anyio-4.13.0, asyncio-1.3.0, cov-7.1.0
 asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collecting ... collected 42 items
+collecting ... collected 43 items
 
 tests/test_admin.py::TestAdminUserList::test_list_users_success PASSED   [  2%]
 tests/test_admin.py::TestAdminUserList::test_list_users_not_admin PASSED [  4%]
-tests/test_admin.py::TestAdminApproveUser::test_approve_user_success PASSED [  7%]
+tests/test_admin.py::TestAdminApproveUser::test_approve_user_success PASSED [  6%]
 tests/test_admin.py::TestAdminStats::test_get_stats_success PASSED       [  9%]
 tests/test_auth.py::TestAuthRegister::test_register_success PASSED       [ 11%]
-tests/test_auth.py::TestAuthRegister::test_register_duplicate_phone PASSED [ 14%]
+tests/test_auth.py::TestAuthRegister::test_register_duplicate_phone PASSED [ 13%]
 tests/test_auth.py::TestAuthRegister::test_register_invalid_user_type PASSED [ 16%]
-tests/test_auth.py::TestAuthLogin::test_login_success PASSED             [ 19%]
-tests/test_auth.py::TestAuthLogin::test_login_wrong_password PASSED      [ 21%]
+tests/test_auth.py::TestAuthLogin::test_login_success PASSED             [ 18%]
+tests/test_auth.py::TestAuthLogin::test_login_wrong_password PASSED      [ 20%]
 tests/test_auth.py::TestAuthLogin::test_login_nonexistent_user PASSED    [ 23%]
-tests/test_auth.py::TestAuthLogin::test_login_pending_user PASSED        [ 26%]
-tests/test_auth.py::TestAuthMe::test_me_success PASSED                   [ 28%]
+tests/test_auth.py::TestAuthLogin::test_login_pending_user PASSED        [ 25%]
+tests/test_auth.py::TestAuthMe::test_me_success PASSED                   [ 27%]
 tests/test_auth.py::TestAuthMe::test_me_without_token PASSED             [ 30%]
-tests/test_auth.py::TestAuthUpdate::test_update_me_success PASSED        [ 33%]
-tests/test_auth.py::TestAuthUpdate::test_update_me_without_auth PASSED   [ 35%]
-tests/test_demands.py::TestDemandCreate::test_create_demand_success PASSED [ 38%]
-tests/test_demands.py::TestDemandCreate::test_create_demand_as_yi_forbidden PASSED [ 40%]
-tests/test_demands.py::TestDemandCreate::test_create_demand_without_auth PASSED [ 42%]
-tests/test_demands.py::TestDemandList::test_list_demands_pagination PASSED [ 45%]
-tests/test_demands.py::TestDemandList::test_list_demands_keyword_search PASSED [ 47%]
-tests/test_demands.py::TestDemandList::test_list_demands_status_filter PASSED [ 50%]
-tests/test_demands.py::TestDemandPublish::test_publish_demand_success PASSED [ 52%]
-tests/test_demands.py::TestDemandPublish::test_delete_demand_forbidden_status PASSED [ 54%]
-tests/test_demands.py::TestDemandPublish::test_delete_draft_demand_success PASSED [ 57%]
-tests/test_disputes.py::TestDisputeCreate::test_create_dispute_success FAILED [ 59%]
-tests/test_drawings.py::TestDrawingUpload::test_upload_drawing_success PASSED [ 61%]
-tests/test_drawings.py::TestDrawingUpload::test_upload_drawing_without_auth PASSED [ 64%]
-tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_success PASSED [ 66%]
+tests/test_auth.py::TestAuthUpdate::test_update_me_success PASSED        [ 32%]
+tests/test_auth.py::TestAuthUpdate::test_update_me_without_auth PASSED   [ 34%]
+tests/test_demands.py::TestDemandCreate::test_create_demand_success PASSED [ 37%]
+tests/test_demands.py::TestDemandCreate::test_create_demand_as_yi_forbidden PASSED [ 39%]
+tests/test_demands.py::TestDemandCreate::test_create_demand_without_auth PASSED [ 41%]
+tests/test_demands.py::TestDemandList::test_list_demands_pagination PASSED [ 44%]
+tests/test_demands.py::TestDemandList::test_list_demands_keyword_search PASSED [ 46%]
+tests/test_demands.py::TestDemandList::test_list_demands_status_filter PASSED [ 48%]
+tests/test_demands.py::TestDemandPublish::test_publish_demand_success PASSED [ 51%]
+tests/test_demands.py::TestDemandPublish::test_delete_demand_forbidden_status PASSED [ 53%]
+tests/test_demands.py::TestDemandPublish::test_delete_draft_demand_success PASSED [ 55%]
+tests/test_disputes.py::TestDisputeCreate::test_create_dispute_success PASSED [ 58%]
+tests/test_disputes.py::TestDisputeCreate::test_create_dispute_without_auth PASSED [ 60%]
+tests/test_drawings.py::TestDrawingUpload::test_upload_drawing_success PASSED [ 62%]
+tests/test_drawings.py::TestDrawingUpload::test_upload_drawing_without_auth PASSED [ 65%]
+tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_success PASSED [ 67%]
 tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_too_short PASSED [ 69%]
-tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_without_token PASSED [ 71%]
-tests/test_feedback.py::TestFeedbackList::test_list_feedback_success PASSED [ 73%]
+tests/test_feedback.py::TestFeedbackCreate::test_create_feedback_without_token PASSED [ 72%]
+tests/test_feedback.py::TestFeedbackList::test_list_feedback_success PASSED [ 74%]
 tests/test_feedback.py::TestFeedbackList::test_list_feedback_without_token PASSED [ 76%]
-tests/test_notifications.py::TestNotificationList::test_list_notifications_success PASSED [ 78%]
-tests/test_notifications.py::TestNotificationList::test_list_notifications_not_auth PASSED [ 80%]
+tests/test_notifications.py::TestNotificationList::test_list_notifications_success PASSED [ 79%]
+tests/test_notifications.py::TestNotificationList::test_list_notifications_not_auth PASSED [ 81%]
 tests/test_notifications.py::TestNotificationUnread::test_get_unread_count PASSED [ 83%]
-tests/test_orders.py::TestQuoteAndOrder::test_quote_and_order_flow PASSED [ 85%]
+tests/test_orders.py::TestQuoteAndOrder::test_quote_and_order_flow PASSED [ 86%]
 tests/test_orders.py::TestQuoteAndOrder::test_yi_cannot_quote_own_demand PASSED [ 88%]
 tests/test_orders.py::TestOrderPayment::test_order_pay_success PASSED    [ 90%]
-tests/test_orders.py::TestOrderPayment::test_yi_cannot_pay PASSED        [ 92%]
+tests/test_orders.py::TestOrderPayment::test_yi_cannot_pay PASSED        [ 93%]
 tests/test_orders.py::TestOrderAccept::test_order_accept_and_complete PASSED [ 95%]
 tests/test_orders.py::TestOrderPagination::test_orders_pagination PASSED [ 97%]
 tests/test_simple.py::TestBasic::test_auth_me_success PASSED             [100%]
 
-================================== FAILURES ===================================
-________________ TestDisputeCreate.test_create_dispute_success ________________
-tests\test_disputes.py:71: in test_create_dispute_success
-    status=OrderStatus.pending_accept.value
-..\..\..\..\AppData\Local\Programs\Python\Python310\lib\enum.py:437: in __getattr__
-    raise AttributeError(name) from None
-E   AttributeError: pending_accept. Did you mean: 'pending_payment'?
 ============================== warnings summary ===============================
 auth.py:17
   c:\\Users\\18680\\WorkBuddy\\20260330124614\\tushen-system\\backend\\auth.py:17: UserWarning: \u26a0\ufe0f \u4f7f\u7528\u9ed8\u8ba4 SECRET_KEY\uff0c\u8bf7\u8bbe\u7f6e TUSHEN_SECRET_KEY \u73af\u5883\u53d8\u91cf\uff01\n    warnings.warn("\u26a0\ufe0f \u4f7f\u7528\u9ed8\u8ba4 SECRET_KEY\uff0c\u8bf7\u8bbe\u7f6e TUSHEN_SECRET_KEY \u73af\u5883\u53d8\u91cf\uff01")
@@ -87,6 +81,4 @@ tests/test_admin.py::TestAdminUserList::test_list_users_success
     admin = User(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-=========================== short test summary info ===========================
-FAILED tests/test_disputes.py::TestDisputeCreate::test_create_dispute_success
-================== 1 failed, 41 passed, 5 warnings in 27.74s ==================
+======================= 43 passed, 5 warnings in 28.09s =======================
