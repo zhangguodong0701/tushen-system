@@ -111,7 +111,7 @@ def list_demands(status: Optional[str] = None, profession: Optional[str] = None,
                  keyword: Optional[str] = None, payment_type: Optional[str] = None,
                  demand_type: Optional[str] = None,
                  page: int = 1, page_size: int = 12,
-                 db: Session = Depends(get_db)):
+                 current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     q = db.query(Demand)
     if status:
         q = q.filter(Demand.status == status)

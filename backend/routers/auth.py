@@ -9,7 +9,7 @@ import os, uuid
 from models import get_db, User
 from constants import UserStatus
 from auth import verify_password, get_password_hash, create_access_token, get_current_user
-from schemas import UserRegister, UserUpdate, ChangePassword
+from schemas import UserRegister, UserUpdate, ChangePassword, UserResponse
 from utils import user_to_dict, extract_notification_type, generate_serial_number
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
@@ -131,7 +131,7 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
 
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user)):
-    return user_to_dict(current_user)
+    return UserResponse.model_validate(current_user)
 
 
 @router.put("/me")
@@ -139,7 +139,7 @@ def update_me(data: UserUpdate, current_user: User = Depends(get_current_user), 
     for k, v in data.model_dump(exclude_none=True).items():
         setattr(current_user, k, v)
     db.commit()
-    return user_to_dict(current_user)
+    return UserResponse.model_validate(current_user)
 
 
 @router.post("/change-password")

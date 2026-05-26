@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -60,16 +61,70 @@ def _check_rate_limit(ip: str, endpoint: str, limit: int = 10, window: int = 60)
     _rate_limit_store[key].append(now)
     return True
 
+
+# ========== Lifespan 事件（替代弃用的 on_event） ==========
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时
+    init_db()
+    db = next(get_db())
+    admin = db.query(User).filter(User.is_admin == 1).first()
+    if not admin:
+        admin_user = User(
+            phone="13800000000",
+            email="admin@tushen.com",
+            hashed_password=get_password_hash("admin123"),
+            real_name="系统管理员",
+            user_type="设计院",
+            status="通过",
+            is_admin=1,
+            company_name="图审平台"
+        )
+        db.add(admin_user)
+    reviewer = db.query(User).filter(User.is_reviewer == 1).first()
+    if not reviewer:
+        reviewer_user = User(
+            phone="13900000000",
+            email="reviewer@tushen.com",
+            hashed_password=get_password_hash("reviewer123"),
+            real_name="平台审核员",
+            user_type="设计师",
+            status="通过",
+            is_reviewer=1,
+            company_name="图审平台"
+        )
+        db.add(reviewer_user)
+    db.commit()
+    db.close()
+    yield
+    # 关闭时（清理资源）
+    _rate_limit_store.clear()
+
+
 # ========== FastAPI App ==========
-app = FastAPI(title="图审系统API", version="1.0.0")
+# CORS 配置
+# 生产环境请设置 CORS_ORIGINS 环境变量，如：CORS_ORIGINS=https://example.com,https://admin.example.com
+# 未设置时默认允许所有来源（仅限开发环境）
+_cors_env = os.environ.get("CORS_ORIGINS", "")
+ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else ["*"]
+
+# Swagger 文档开关（生产环境建议关闭）
+DISABLE_DOCS = os.environ.get("DISABLE_DOCS", "0") == "1"
+
+app = FastAPI(
+    title="图审系统 API",
+    version="1.0.0",
+    docs_url=None if DISABLE_DOCS else "/docs",
+    redoc_url=None if DISABLE_DOCS else "/redoc",
+    openapi_url=None if DISABLE_DOCS else "/openapi.json",
+    lifespan=lifespan
+)
 
 # 安全头中间件
 app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS 配置
-# 开发环境支持所有来源，生产环境请设置 CORS_ORIGINS 环境变量
-_cors_env = os.environ.get("CORS_ORIGINS", "")
-ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else ["*"]
+# CORS 中间件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -109,39 +164,6 @@ app.include_router(disputes_router)
 app.include_router(admin_router)
 app.include_router(feedback_router)
 
-# ========== 启动事件 ==========
-@app.on_event("startup")
-def startup():
-    init_db()
-    db = next(get_db())
-    admin = db.query(User).filter(User.is_admin == 1).first()
-    if not admin:
-        admin_user = User(
-            phone="13800000000",
-            email="admin@tushen.com",
-            hashed_password=get_password_hash("admin123"),
-            real_name="系统管理员",
-            user_type="设计院",
-            status="通过",
-            is_admin=1,
-            company_name="图审平台"
-        )
-        db.add(admin_user)
-    reviewer = db.query(User).filter(User.is_reviewer == 1).first()
-    if not reviewer:
-        reviewer_user = User(
-            phone="13900000000",
-            email="reviewer@tushen.com",
-            hashed_password=get_password_hash("reviewer123"),
-            real_name="平台审核员",
-            user_type="设计师",
-            status="通过",
-            is_reviewer=1,
-            company_name="图审平台"
-        )
-        db.add(reviewer_user)
-    db.commit()
-    db.close()
 
 if __name__ == "__main__":
     import uvicorn

@@ -152,3 +152,22 @@ class DrawingVersionsResponse(BaseModel):
     order_title: str
     group_id: int
     versions: list[DrawingVersionItem]
+
+
+# ========== 用户响应模型（脱敏版） ==========
+class UserResponse(BaseModel):
+    """脱敏后的用户信息响应模型"""
+    id: int
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    real_name: Optional[str] = None
+    user_type: Optional[str] = None
+    status: Optional[str] = None
+    is_admin: Optional[int] = None
+    is_reviewer: Optional[int] = None
+    company_name: Optional[str] = None
+    avatar: Optional[str] = None
+    auth_type: Optional[str] = None
+    created_at: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
